@@ -191,7 +191,7 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 	argDef, errd := FunctionDef(cfg, log, jc, req.Method)
 	if errd != nil {
 		log.Printf("mtd def error: %s", errd)
-		resultRPC.Error = JSONRPCError{Code: -32601, Message: errd.(string)}
+		resultRPC.Error = respRPCError{Code: -32601, Message: errd.(string)}
 	} else {
 		// Load args
 		key := []string{req.Method}
@@ -206,14 +206,14 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 		}
 
 		if len(f404) > 0 {
-			resultRPC.Error = JSONRPCError{Code: -32602, Message: "Requred parameter(s) not found", Data: f404}
+			resultRPC.Error = respRPCError{Code: -32602, Message: "Requred parameter(s) not found", Data: f404}
 		} else {
 			payload, _ := json.Marshal(key)
 			res := FunctionResult(jc, string(payload))
 			if res.Success {
 				resultRPC.Result = res.Result
 			} else {
-				resultRPC.Error = JSONRPCError{Code: -32603, Message: "Internal Error", Data: res.Error}
+				resultRPC.Error = respRPCError{Code: -32603, Message: "Internal Error", Data: res.Error}
 			}
 		}
 
@@ -246,7 +246,7 @@ type serverResponse struct {
 	Error   interface{} `json:"error,omitempty"`
 }
 
-type JSONRPCError struct {
+type respRPCError struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
