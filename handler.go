@@ -124,7 +124,7 @@ func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w ht
 	}
 	var result workman.Result
 	if len(f404) > 0 {
-		result = workman.Result{Success: false, Error: fmt.Sprintf("Requred parameter(s) %+v not found", f404)}
+		result = workman.Result{Success: false, Error: fmt.Sprintf("Required parameter(s) %+v not found", f404)}
 	} else {
 		payload, _ := json.Marshal(key)
 		result = FunctionResult(jc, string(payload))
@@ -206,7 +206,7 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 		}
 
 		if len(f404) > 0 {
-			resultRPC.Error = respRPCError{Code: -32602, Message: "Requred parameter(s) not found", Data: f404}
+			resultRPC.Error = respRPCError{Code: -32602, Message: "Required parameter(s) not found", Data: f404}
 		} else {
 			payload, _ := json.Marshal(key)
 			res := FunctionResult(jc, string(payload))
