@@ -67,7 +67,7 @@ func TestOne(t *testing.T) {
 
 	res := []byte(*resp.Result)
 	if !reflect.DeepEqual(payload, res) {
-		t.Errorf("WM run error, got %s wait %s", resp.Result, payload)
+		t.Errorf("WM run error, got %s wait %s", res, payload)
 	}
 
 }

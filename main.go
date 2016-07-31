@@ -11,10 +11,12 @@ import (
 	"database/sql"
 	_ "github.com/lib/pq"
 
-	"github.com/fvbock/endless"
+	//	"github.com/fvbock/endless"
 	"github.com/golang/groupcache"
 	"github.com/gorilla/mux"
 	"github.com/jessevdk/go-flags"
+
+	"github.com/LeKovr/endless"
 
 	"github.com/LeKovr/dbrpc/workman"
 	"github.com/LeKovr/go-base/logger"
@@ -63,6 +65,35 @@ func main() {
 	log.Infof("%s v %s. DataBase RPC service", Program, Version)
 	log.Println("Copyright (C) 2016, Alexey Kovrizhkin <ak@elfire.ru>")
 
+	mux1, wm := Handlers(&cfg, log, db)
+	wm.Run()
+	defer wm.Stop()
+
+	/*
+	   peers := groupcache.NewHTTPPool("http://localhost:" + *port)
+	   http.ListenAndServe("127.0.0.1:"+*port, http.HandlerFunc(peers.ServeHTTP))
+	*/
+
+	server := endless.NewServer(cfg.Addr, mux1, log)
+	server.BeforeBegin = func(addr string) {
+		log.Printf("Listen %s with program pid %d", addr, syscall.Getpid())
+		ioutil.WriteFile(Program+".pid", []byte(fmt.Sprintf("%d", syscall.Getpid())), 0644)
+	}
+	inStop := false
+	server.RegisterSignalHook(endless.PRE_SIGNAL, syscall.SIGTERM, func() { inStop = true })
+	err := server.ListenAndServe()
+	if err != nil && !inStop {
+		log.Debug(err)
+	}
+	log.Println("Server stopped")
+	os.Exit(0)
+}
+
+// -----------------------------------------------------------------------------
+
+// Handlers used to prepare and http handlers
+func Handlers(cfg *Config, log *logger.Log, db *sql.DB) (*mux.Router, *workman.WorkMan) {
+
 	cache := groupcache.NewGroup(
 		cfg.CacheGroup,
 		cfg.CacheSize,
@@ -75,43 +106,22 @@ func main() {
 		workman.Config(&cfg.wm),
 		workman.Logger(log),
 	)
-	panicIfError(err) // check Flags parse error
-	wm.Run()
-	defer wm.Stop()
+	panicIfError(err)
 
-	mux1 := mux.NewRouter()
-	mux1.PathPrefix(cfg.apl.Prefix).Handler(httpHandler(&cfg.apl, log, wm.JobQueue))
-	//mux1.HandleFunc(cfg.Prefix, httpHandler(&cfg.apl, log, wm.JobQueue))
+	r := mux.NewRouter()
+	r.PathPrefix(cfg.apl.Prefix).Handler(httpHandler(&cfg.apl, log, wm.JobQueue))
 
-	/*
-	   peers := groupcache.NewHTTPPool("http://localhost:" + *port)
-	   http.ListenAndServe("127.0.0.1:"+*port, http.HandlerFunc(peers.ServeHTTP))
-	*/
-
-	server := endless.NewServer(cfg.Addr, mux1)
-	server.BeforeBegin = func(addr string) {
-		log.Printf("Listen %s with program pid %d", addr, syscall.Getpid())
-		ioutil.WriteFile(Program+".pid", []byte(fmt.Sprintf("%d", syscall.Getpid())), 0644)
-	}
-	inStop := false
-	server.RegisterSignalHook(endless.PRE_SIGNAL, syscall.SIGTERM, func() { inStop = true })
-	err = server.ListenAndServe()
-	if err != nil && !inStop {
-		log.Debug(err)
-	}
-	log.Println("Server stopped")
-	os.Exit(0)
+	return r, wm
 }
 
 // -----------------------------------------------------------------------------
 
-func setUp(cfg *Config) (log *logger.Log, db *sql.DB, err error) {
-
+func makeConfig(cfg *Config) *flags.Parser {
 	p := flags.NewParser(nil, flags.Default)
-	_, err = p.AddGroup("Application Options", "", cfg)
+	_, err := p.AddGroup("Application Options", "", cfg)
 	panicIfError(err) // check Flags parse error
 
-	_, err = p.AddGroup("Database Options", "", &cfg.apl)
+	_, err = p.AddGroup("Applied logic Options", "", &cfg.apl)
 	panicIfError(err) // check Flags parse error
 
 	_, err = p.AddGroup("Logging Options", "", &cfg.log)
@@ -119,12 +129,17 @@ func setUp(cfg *Config) (log *logger.Log, db *sql.DB, err error) {
 
 	_, err = p.AddGroup("WorkerManager Options", "", &cfg.wm)
 	panicIfError(err) // check Flags parse error
+	return p
+}
+
+func setUp(cfg *Config) (log *logger.Log, db *sql.DB, err error) {
+
+	p := makeConfig(cfg)
 
 	_, err = p.Parse()
 	if err != nil {
 		os.Exit(1) // error message written already
 	}
-
 	if cfg.Version {
 		// show version & exit
 		fmt.Printf("%s\n%s\n%s", Version, Build, Commit)

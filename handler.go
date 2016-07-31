@@ -170,6 +170,12 @@ func optionsContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, 
 	return
 }
 
+func getRaw(data interface{}) *json.RawMessage {
+	j, _ := json.Marshal(data)
+	raw := json.RawMessage(j)
+	return &raw
+}
+
 // -----------------------------------------------------------------------------
 
 func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w http.ResponseWriter, r *http.Request) {
@@ -186,12 +192,12 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
-	resultRPC := serverResponse{ID: req.ID, JSONRPC: req.JSONRPC}
+	resultRPC := serverResponse{ID: req.ID, Version: req.Version}
 
 	argDef, errd := FunctionDef(cfg, log, jc, req.Method)
 	if errd != nil {
 		log.Printf("mtd def error: %s", errd)
-		resultRPC.Error = respRPCError{Code: -32601, Message: errd.(string)}
+		resultRPC.Error = getRaw(respRPCError{Code: -32601, Message: errd.(string)})
 	} else {
 		// Load args
 		key := []string{req.Method}
@@ -199,21 +205,25 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 		f404 := []string{}
 		for _, a := range argDef {
 			v, ok := req.Params[a.Name]
-			if !ok && !a.AllowNull && a.Default == nil {
-				f404 = append(f404, a.Name)
+			if !ok {
+				if !a.AllowNull && a.Default == nil {
+					f404 = append(f404, a.Name)
+				}
+				key = append(key, "") // TODO: nil
+			} else {
+				key = append(key, v.(string))
 			}
-			key = append(key, v.(string))
 		}
 
 		if len(f404) > 0 {
-			resultRPC.Error = respRPCError{Code: -32602, Message: "Required parameter(s) not found", Data: f404}
+			resultRPC.Error = getRaw(respRPCError{Code: -32602, Message: "Required parameter(s) not found", Data: getRaw(f404)})
 		} else {
 			payload, _ := json.Marshal(key)
 			res := FunctionResult(jc, string(payload))
 			if res.Success {
 				resultRPC.Result = res.Result
 			} else {
-				resultRPC.Error = respRPCError{Code: -32603, Message: "Internal Error", Data: res.Error}
+				resultRPC.Error = getRaw(respRPCError{Code: -32603, Message: "Internal Error", Data: getRaw(res.Error)})
 			}
 		}
 
@@ -223,9 +233,11 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 	if err != nil {
 		log.Println("Marshall error: ", err)
 		resultRPC.Result = nil
-		resultRPC.Error = err.Error()
+		resultRPC.Error = getRaw(respRPCError{Code: -32603, Message: "Internal Error", Data: getRaw(err.Error())})
+
 		out, _ = json.Marshal(resultRPC)
 	}
+	log.Debugf("JSON Resp: %s", string(out))
 	w.Write(out)
 	w.Write([]byte("\n"))
 }
@@ -234,20 +246,20 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 
 type serverRequest struct {
 	Method  string                 `json:"method"`
-	JSONRPC string                 `json:"jsonrpc"`
-	ID      int                    `json:"id"`
+	Version string                 `json:"jsonrpc"`
+	ID      uint64                 `json:"id"`
 	Params  map[string]interface{} `json:"params"`
 }
 
 type serverResponse struct {
-	ID      int         `json:"id"`
-	JSONRPC string      `json:"jsonrpc"`
-	Result  interface{} `json:"result,omitempty"`
-	Error   interface{} `json:"error,omitempty"`
+	ID      uint64           `json:"id"`
+	Version string           `json:"jsonrpc"`
+	Result  *json.RawMessage `json:"result,omitempty"`
+	Error   *json.RawMessage `json:"error,omitempty"`
 }
 
 type respRPCError struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+	Code    int              `json:"code"`
+	Message string           `json:"message"`
+	Data    *json.RawMessage `json:"data,omitempty"`
 }

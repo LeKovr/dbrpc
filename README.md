@@ -59,6 +59,12 @@ Features
 * [ ] Integrated templates
 * [ ] i18n
 
+### ToDo
+
+* endless uses syscall.Kill which is not portable to Windows yet.
+* improve tests
+* add `--index` arg - proc name to fetch functions list (and name -> function mapping)
+
 Install
 -------
 
