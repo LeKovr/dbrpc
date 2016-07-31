@@ -4,6 +4,7 @@ package workman
 
 import (
 	"encoding/json"
+	"sync"
 
 	"github.com/LeKovr/go-base/logger"
 )
@@ -44,16 +45,18 @@ type Worker struct {
 	JobChannel  chan Job
 	QuitChannel chan bool
 	Log         *logger.Log
+	wg          *sync.WaitGroup
 }
 
 // NewWorker creates a worker instance
-func NewWorker(wf WorkerFunc, workerPool chan chan Job, log *logger.Log) Worker {
+func NewWorker(wf WorkerFunc, workerPool chan chan Job, log *logger.Log, wg *sync.WaitGroup) Worker {
 	return Worker{
 		WorkerFunc:  wf,
 		WorkerPool:  workerPool,
 		JobChannel:  make(chan Job),
 		QuitChannel: make(chan bool),
 		Log:         log,
+		wg:          wg,
 	}
 }
 
@@ -61,6 +64,7 @@ func NewWorker(wf WorkerFunc, workerPool chan chan Job, log *logger.Log) Worker 
 // case we need to stop it
 func (w Worker) Start(id int) {
 	go func(id int) {
+		w.wg.Add(1)
 		w.Log.Debugf("Worker %d started", id)
 		for {
 			// register the current worker into the worker queue.
@@ -73,6 +77,7 @@ func (w Worker) Start(id int) {
 			case <-w.QuitChannel:
 				// we have received a signal to stop
 				w.Log.Debugf("Worker %d exiting", id)
+				w.wg.Done()
 				return
 			}
 		}
@@ -86,8 +91,10 @@ type WorkMan struct {
 	JobQueue   chan Job       // A buffered channel that we can send work requests on.
 	WorkerPool chan chan Job  // A pool of workers channels that are registered with the WorkMan
 	QuitPool   chan chan bool // A pool of channels listens for quit
+	QuitMain   chan bool
 	WorkerFunc WorkerFunc
 	Config     *Flags
+	WG         *sync.WaitGroup
 	Log        *logger.Log
 }
 
@@ -144,6 +151,8 @@ func New(workerFunc WorkerFunc, options ...func(*WorkMan) error) (*WorkMan, erro
 	wm.JobQueue = make(chan Job, wm.Config.MaxQueue)
 	wm.WorkerPool = make(chan chan Job, wm.Config.MaxWorkers)
 	wm.QuitPool = make(chan chan bool, wm.Config.MaxWorkers)
+	wm.QuitMain = make(chan bool, 1)
+	wm.WG = &sync.WaitGroup{}
 
 	// If log not set - create default
 	if wm.Log == nil {
@@ -165,9 +174,9 @@ func New(workerFunc WorkerFunc, options ...func(*WorkMan) error) (*WorkMan, erro
 func (wm *WorkMan) Run() {
 	// starting n number of workers
 	for i := 0; i < wm.Config.MaxWorkers; i++ {
-		worker := NewWorker(wm.WorkerFunc, wm.WorkerPool, wm.Log)
-		worker.Start(i)
+		worker := NewWorker(wm.WorkerFunc, wm.WorkerPool, wm.Log, wm.WG)
 		wm.QuitPool <- worker.QuitChannel
+		worker.Start(i)
 	}
 
 	go wm.dispatch()
@@ -177,11 +186,8 @@ func (wm *WorkMan) Run() {
 
 // Stop stops all started workers
 func (wm *WorkMan) Stop() {
-	// send n number of quits
-	wm.Log.Debugf("Stopping workers (%d)", len(wm.QuitPool))
-	for q := range wm.QuitPool {
-		q <- true
-	}
+	wm.QuitMain <- true
+	wm.WG.Wait()
 }
 
 // -----------------------------------------------------------------------------
@@ -198,6 +204,15 @@ func (wm *WorkMan) dispatch() {
 
 			// dispatch the job to the worker job channel
 			jobChannel <- job
+		case <-wm.QuitMain:
+			// we have received a signal to stop
+			wm.Log.Debug("Worker manager exiting")
+
+			wm.Log.Debugf("Stopping workers (%d)", len(wm.QuitPool))
+			for q := range wm.QuitPool {
+				q <- true
+			}
+			return
 		}
 	}
 }
