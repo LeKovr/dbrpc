@@ -157,6 +157,10 @@ func setUp(cfg *Config) (log *logger.Log, db *sql.DB, err error) {
 	db, err = sql.Open("postgres", "postgres://"+cfg.Connect)
 	panicIfError(err) // check Flags parse error
 
+	if cfg.apl.Schema != "public" {
+		_, err = db.Exec("set search_path = " + cfg.apl.Schema + ", public")
+		panicIfError(err)
+	}
 	return
 }
 
