@@ -15,7 +15,7 @@ import (
 
 // ArgDef holds function argument attributes
 type ArgDef struct {
-	ID        int
+	ID        int32
 	Name      string
 	Type      string
 	Default   *string

@@ -2,21 +2,15 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
-	"syscall"
 
-	"database/sql"
-	_ "github.com/lib/pq"
+	"gopkg.in/jackc/pgx.v2"
 
-	//	"github.com/fvbock/endless"
 	"github.com/golang/groupcache"
 	"github.com/gorilla/mux"
 	"github.com/jessevdk/go-flags"
-
-	"github.com/LeKovr/endless"
 
 	"github.com/LeKovr/dbrpc/workman"
 	"github.com/LeKovr/go-base/logger"
@@ -74,17 +68,8 @@ func main() {
 	   http.ListenAndServe("127.0.0.1:"+*port, http.HandlerFunc(peers.ServeHTTP))
 	*/
 
-	server := endless.NewServer(cfg.Addr, mux1, log)
-	server.BeforeBegin = func(addr string) {
-		log.Printf("Listen %s with program pid %d", addr, syscall.Getpid())
-		ioutil.WriteFile(Program+".pid", []byte(fmt.Sprintf("%d", syscall.Getpid())), 0644)
-	}
-	inStop := false
-	server.RegisterSignalHook(endless.PRE_SIGNAL, syscall.SIGTERM, func() { inStop = true })
-	err := server.ListenAndServe()
-	if err != nil && !inStop {
-		log.Debug(err)
-	}
+	runServer(cfg, log, mux1)
+
 	log.Println("Server stopped")
 	os.Exit(0)
 }
@@ -92,7 +77,7 @@ func main() {
 // -----------------------------------------------------------------------------
 
 // Handlers used to prepare and http handlers
-func Handlers(cfg *Config, log *logger.Log, db *sql.DB) (*mux.Router, *workman.WorkMan) {
+func Handlers(cfg *Config, log *logger.Log, db *pgx.Conn) (*mux.Router, *workman.WorkMan) {
 
 	cache := groupcache.NewGroup(
 		cfg.CacheGroup,
@@ -132,7 +117,7 @@ func makeConfig(cfg *Config) *flags.Parser {
 	return p
 }
 
-func setUp(cfg *Config) (log *logger.Log, db *sql.DB, err error) {
+func setUp(cfg *Config) (log *logger.Log, db *pgx.Conn, err error) {
 
 	p := makeConfig(cfg)
 
@@ -154,7 +139,9 @@ func setUp(cfg *Config) (log *logger.Log, db *sql.DB, err error) {
 	panicIfError(err) // check Flags parse error
 
 	// Setup database
-	db, err = sql.Open("postgres", "postgres://"+cfg.Connect)
+	c, err := pgx.ParseURI("postgres://" + cfg.Connect)
+	panicIfError(err) // check Flags parse error
+	db, err = pgx.Connect(c)
 	panicIfError(err) // check Flags parse error
 
 	if cfg.apl.Schema != "public" {

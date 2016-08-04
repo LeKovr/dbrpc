@@ -38,6 +38,9 @@ up: build $(PIDFILE)
 $(PIDFILE):
 	@nohup ./$(PRGPATH) --log_level debug --db_connect $(DBCONN) >$(LOGFILE) 2>&1 &
 
+run: build
+	./$(PRGPATH) --log_level debug --db_connect $(DBCONN)
+
 reload: build $(PIDFILE)
 	@kill -1 $$(cat $(PIDFILE))
 

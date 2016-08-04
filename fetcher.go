@@ -1,10 +1,11 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"gopkg.in/jackc/pgx.v2"
 
 	"github.com/golang/groupcache"
 
@@ -40,19 +41,19 @@ func cacheFetcher(log *logger.Log, cacheGroup *groupcache.Group) workman.WorkerF
 
 // -----------------------------------------------------------------------------
 
-func dbFetcher(cfg *AplFlags, log *logger.Log, db *sql.DB) groupcache.GetterFunc {
+func dbFetcher(cfg *AplFlags, log *logger.Log, db *pgx.Conn) groupcache.GetterFunc {
 	return func(ctx groupcache.Context, key string, dest groupcache.Sink) error {
 		log.Printf("asking for %s from dbserver", key)
 
-		var args []*string
+		var args []string
 		var data []byte
 
 		//err := json.Unmarshal(key, &args)
 		json.Unmarshal([]byte(key), &args)
 
-		if *args[0] == cfg.ArgDefFunc {
+		if args[0] == cfg.ArgDefFunc {
 
-			q := fmt.Sprintf("select * from %s.%s($1)", cfg.Schema, *args[0])
+			q := fmt.Sprintf("select * from %s.%s($1)", cfg.Schema, args[0])
 
 			rows, err := db.Query(q, args[1])
 			if err != nil {
@@ -65,10 +66,15 @@ func dbFetcher(cfg *AplFlags, log *logger.Log, db *sql.DB) groupcache.GetterFunc
 				var a ArgDef
 				err = rows.Scan(&a.ID, &a.Name, &a.Type, &a.Default, &a.AllowNull)
 				if err != nil {
+					log.Printf("Func err: (%+v)", rows)
 					return err
 				}
 				res = append(res, a)
 			}
+			if rows.Err() != nil {
+				return err
+			}
+			log.Printf("Func def: %s (%+v)", args[1], res)
 
 			data, err = json.Marshal(res)
 			if err != nil {
@@ -77,14 +83,14 @@ func dbFetcher(cfg *AplFlags, log *logger.Log, db *sql.DB) groupcache.GetterFunc
 
 		} else {
 			q, vals := PrepareFuncSQL(cfg, args)
-			log.Printf("Query: %s (%+v)", q, vals)
+			log.Printf("Query: %s (%+v / %+v)", q, args, vals)
 			rows, err := db.Query(q, vals...)
 			if err != nil {
 				return err
 			}
-			defer rows.Close()
 
-			data, err = FetchSQLResult(rows)
+			data, err = FetchSQLResult(rows, log)
+			defer rows.Close()
 			if err != nil {
 				return err
 			}
@@ -103,8 +109,8 @@ func dbFetcher(cfg *AplFlags, log *logger.Log, db *sql.DB) groupcache.GetterFunc
 // -----------------------------------------------------------------------------
 
 // PrepareFuncSQL prepares sql query with args placeholders
-func PrepareFuncSQL(cfg *AplFlags, args []*string) (string, []interface{}) {
-	mtd := *(args[0])
+func PrepareFuncSQL(cfg *AplFlags, args []string) (string, []interface{}) {
+	mtd := args[0]
 	argVals := args[1:]
 
 	argValPrep := make([]interface{}, len(argVals))
@@ -125,21 +131,23 @@ func PrepareFuncSQL(cfg *AplFlags, args []*string) (string, []interface{}) {
 // -----------------------------------------------------------------------------
 
 // FetchSQLResult fetches sql result and marshalls it into json
-func FetchSQLResult(rows *sql.Rows) (data []byte, err error) {
+func FetchSQLResult(rows *pgx.Rows, log *logger.Log) (data []byte, err error) {
 	// http://stackoverflow.com/a/29164115
-	columns, err := rows.Columns()
-	if err != nil {
-		return
+	columnDefs := rows.FieldDescriptions()
+	//log.Debugf("=========== %+v", columnDefs)
+	columns := []string{}
+	for _, c := range columnDefs {
+		columns = append(columns, c.Name)
 	}
-	count := len(columns)
+
 	var tableData []map[string]interface{}
-	values := make([]interface{}, count)
-	valuePtrs := make([]interface{}, count)
 	for rows.Next() {
-		for i := 0; i < count; i++ {
-			valuePtrs[i] = &values[i]
+		values, err := rows.Values()
+		if err != nil {
+			log.Warningf("Value fetch error: %s", err.Error())
 		}
-		rows.Scan(valuePtrs...)
+		log.Debugf("Values: %+v", values)
+
 		entry := make(map[string]interface{})
 		for i, col := range columns {
 			var v interface{}

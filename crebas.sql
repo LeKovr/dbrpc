@@ -159,6 +159,22 @@ $_$
     SELECT $1, $2;
 $_$;
 
+CREATE OR REPLACE FUNCTION echo_jsonb(
+  a_name   TEXT
+,  a_id     INTEGER DEFAULT 5
+) RETURNS TABLE(name TEXT, id INTEGER, js jsonb) LANGUAGE 'sql' AS
+$_$
+    SELECT $1, $2, ' {"a": 2, "b": ["c", "d"]}'::jsonb;
+$_$;
+
+CREATE OR REPLACE FUNCTION echo_arr(
+  a_name   TEXT[]
+,  a_id     INTEGER DEFAULT 5
+) RETURNS TABLE(name TEXT[], id INTEGER) LANGUAGE 'sql' AS
+$_$
+    SELECT $1, $2;
+$_$;
+
 CREATE OR REPLACE FUNCTION echo_single(
  a_name   TEXT
 ) RETURNS TEXT LANGUAGE 'sql' AS
@@ -189,4 +205,7 @@ select * from pg_func_result('public.dbsize');
 
 select * from echo('test',1);
 select * from echo('test');
+select * from echo_jsonb('test');
 select echo_single('test');
+
+select * from echo_arr('{test1,test2}');
