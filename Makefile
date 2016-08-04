@@ -17,7 +17,8 @@ PRGPATH   ?= $(PRGBIN)
 PIDFILE   ?= $(PRGBIN).pid
 LOGFILE   ?= $(PRGBIN).log
 STAMP     ?= $$(date +%Y-%m-%d_%H:%M.%S)
-ALLARCH   ?= "linux/amd64 linux/386 windows/amd64 darwin/386"
+ALLARCH   ?= "linux/amd64 linux/386  darwin/386"
+# windows/amd64
 
 # Search .git for commit id fetch
 GIT_ROOT  ?= $$([ -d ./.git ] && echo "." || { [ -d ../.git ] && echo ".." ; } || { [ -d ../../.git ] && echo "../.." ; })
