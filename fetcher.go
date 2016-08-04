@@ -44,15 +44,15 @@ func dbFetcher(cfg *AplFlags, log *logger.Log, db *sql.DB) groupcache.GetterFunc
 	return func(ctx groupcache.Context, key string, dest groupcache.Sink) error {
 		log.Printf("asking for %s from dbserver", key)
 
-		var args []string
+		var args []*string
 		var data []byte
 
 		//err := json.Unmarshal(key, &args)
 		json.Unmarshal([]byte(key), &args)
 
-		if args[0] == cfg.ArgDefFunc {
+		if *args[0] == cfg.ArgDefFunc {
 
-			q := fmt.Sprintf("select * from %s.%s($1)", cfg.Schema, args[0])
+			q := fmt.Sprintf("select * from %s.%s($1)", cfg.Schema, *args[0])
 
 			rows, err := db.Query(q, args[1])
 			if err != nil {
@@ -103,8 +103,8 @@ func dbFetcher(cfg *AplFlags, log *logger.Log, db *sql.DB) groupcache.GetterFunc
 // -----------------------------------------------------------------------------
 
 // PrepareFuncSQL prepares sql query with args placeholders
-func PrepareFuncSQL(cfg *AplFlags, args []string) (string, []interface{}) {
-	mtd := args[0]
+func PrepareFuncSQL(cfg *AplFlags, args []*string) (string, []interface{}) {
+	mtd := *(args[0])
 	argVals := args[1:]
 
 	argValPrep := make([]interface{}, len(argVals))

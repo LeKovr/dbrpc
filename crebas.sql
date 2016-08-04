@@ -152,9 +152,9 @@ $_$;
 
 
 CREATE OR REPLACE FUNCTION echo(
-  a_id     INTEGER
-, a_name   TEXT
-) RETURNS TABLE(id INTEGER, name TEXT) LANGUAGE 'sql' AS
+  a_name   TEXT
+,  a_id     INTEGER DEFAULT 5
+) RETURNS TABLE(name TEXT, id INTEGER) LANGUAGE 'sql' AS
 $_$
     SELECT $1, $2;
 $_$;
@@ -187,5 +187,6 @@ select * from pg_func_args('public.pg_func_args');
 select * from pg_func_result('public.pg_func_args');        
 select * from pg_func_result('public.dbsize');        
 
-select * from echo(1,'test');
+select * from echo('test',1);
+select * from echo('test');
 select echo_single('test');

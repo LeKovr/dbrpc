@@ -104,7 +104,7 @@ func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w ht
 		return
 	}
 
-	key := []string{method}
+	key := []*string{&method}
 	r.ParseForm()
 
 	f404 := []string{}
@@ -114,10 +114,13 @@ func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w ht
 		if len(v) == 0 {
 			if !a.AllowNull && a.Default == nil {
 				f404 = append(f404, a.Name)
+			} else if a.Default != nil {
+				log.Debugf("Arg: %s use default", a.Name)
+				break // use defaults
 			}
-			key = append(key, "") // TODO: nil
+			key = append(key, nil) // TODO: nil does not replaced with default
 		} else {
-			key = append(key, v[0]) // TODO: array support
+			key = append(key, &v[0]) // TODO: array support
 		}
 
 		log.Debugf("Arg: %+v (%d)", v, len(f404))
@@ -127,6 +130,7 @@ func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w ht
 		result = workman.Result{Success: false, Error: fmt.Sprintf("Required parameter(s) %+v not found", f404)}
 	} else {
 		payload, _ := json.Marshal(key)
+		log.Infof("Args: %s", string(payload))
 		result = FunctionResult(jc, string(payload))
 	}
 
