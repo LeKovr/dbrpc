@@ -83,7 +83,7 @@ func dbFetcher(cfg *AplFlags, log *logger.Log, db *pgx.Conn) groupcache.GetterFu
 
 		} else {
 			q, vals := PrepareFuncSQL(cfg, args)
-			log.Printf("Query: %s (%+v / %+v)", q, vals)
+			log.Printf("Query: %s (%+v)", q, vals)
 			rows, err := db.Query(q, vals...)
 			if err != nil {
 				return err
