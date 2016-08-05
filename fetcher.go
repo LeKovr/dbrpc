@@ -83,7 +83,7 @@ func dbFetcher(cfg *AplFlags, log *logger.Log, db *pgx.Conn) groupcache.GetterFu
 
 		} else {
 			q, vals := PrepareFuncSQL(cfg, args)
-			log.Printf("Query: %s (%+v / %+v)", q, args, vals)
+			log.Printf("Query: %s (%+v / %+v)", q, vals)
 			rows, err := db.Query(q, vals...)
 			if err != nil {
 				return err
@@ -136,8 +136,10 @@ func FetchSQLResult(rows *pgx.Rows, log *logger.Log) (data []byte, err error) {
 	columnDefs := rows.FieldDescriptions()
 	//log.Debugf("=========== %+v", columnDefs)
 	columns := []string{}
+	types := []string{}
 	for _, c := range columnDefs {
 		columns = append(columns, c.Name)
+		types = append(types, c.DataTypeName)
 	}
 
 	var tableData []map[string]interface{}
@@ -152,15 +154,17 @@ func FetchSQLResult(rows *pgx.Rows, log *logger.Log) (data []byte, err error) {
 		for i, col := range columns {
 			var v interface{}
 			val := values[i]
-			b, ok := val.([]byte)
-			if ok {
-				v = string(b)
+			if types[i] == "json" || types[i] == "jsonb" {
+				raw := fmt.Sprintf("%s", val)
+				ref := json.RawMessage(raw)
+				entry[col] = &ref
 			} else {
 				v = val
+				entry[col] = v
 			}
-			entry[col] = v
 		}
 		tableData = append(tableData, entry)
+
 	}
 	data, err = json.Marshal(tableData)
 	return
