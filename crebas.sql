@@ -1,23 +1,8 @@
-/* ------------------------------------------------------------------------- */
-CREATE OR REPLACE FUNCTION pg_schema_oid(a_name TEXT) RETURNS oid STABLE LANGUAGE 'sql' AS
-$_$
-  -- a_name: название пакета
-  SELECT oid FROM pg_namespace WHERE nspname = $1
-$_$;
-/* ------------------------------------------------------------------------- */
+/*
+  Functions for stored proc definition fetching
 
-CREATE OR REPLACE FUNCTION pg_func_arg_anno(
-  a_src     TEXT
-, a_argname TEXT
-) RETURNS TEXT IMMUTABLE LANGUAGE 'sql' AS
-$_$
-  -- a_src:     путь к функции
-  -- a_argname: название аргумента
-  SELECT (regexp_matches($1, E'--\\s+' || $2 || E':\\s+(.*)$', 'gm'))[1];
-$_$;
-/* ------------------------------------------------------------------------- */
+*/
 
-DROP FUNCTION IF EXISTS pg_func_args(a_code TEXT, a_prefix TEXT);
 CREATE OR REPLACE FUNCTION pg_func_args(a_code TEXT, a_prefix TEXT DEFAULT 'a_') RETURNS TABLE(id INT, name TEXT, type TEXT, def TEXT, allow_null BOOL) STABLE LANGUAGE 'plpgsql' AS
 $_$
   -- a_code:  название функции
@@ -32,10 +17,11 @@ $_$
     v_allow_null BOOL;
   BEGIN
     SELECT INTO v_args
-      pg_get_function_arguments(oid)
+      pg_get_function_arguments(p.oid)
       FROM pg_catalog.pg_proc p
-        WHERE p.pronamespace = pg_schema_oid(split_part(a_code, '.', 1))
-        AND p.proname = split_part(a_code, '.', 2)
+      JOIN pg_namespace n ON (n.oid = p.pronamespace)
+     WHERE n.nspname = split_part(a_code, '.', 1)
+       AND p.proname = split_part(a_code, '.', 2)
     ;
 
     IF NOT FOUND THEN
@@ -84,9 +70,10 @@ $_$
     RETURN;
   END;
 $_$;
+COMMENT ON FUNCTION pg_func_args(TEXT, TEXT) IS 'Return function argument definition';
+
 /* ------------------------------------------------------------------------- */
 
-DROP FUNCTION IF EXISTS pg_func_result(text);
 CREATE OR REPLACE FUNCTION pg_func_result(a_code TEXT) RETURNS TABLE(name TEXT, type TEXT) STABLE LANGUAGE 'plpgsql' AS
 $_$
   -- a_code:  название функции
@@ -96,12 +83,12 @@ $_$
     v_defs       TEXT[];
     v_i INTEGER;   
   BEGIN
-
     SELECT INTO v_is_set, v_ret 
-      proretset, pg_get_function_result(oid)
+      p.proretset, pg_get_function_result(p.oid)
       FROM pg_catalog.pg_proc p
-        WHERE p.pronamespace = pg_schema_oid(split_part(a_code, '.', 1))
-        AND p.proname = split_part(a_code, '.', 2)
+      JOIN pg_namespace n ON (n.oid = p.pronamespace)
+     WHERE n.nspname = split_part(a_code, '.', 1)
+       AND p.proname = split_part(a_code, '.', 2)
     ;
 
     IF v_ret = '' THEN
@@ -122,90 +109,5 @@ $_$
     RETURN;
   END;
 $_$;
-/* ------------------------------------------------------------------------- */
 
-
-
-DROP FUNCTION IF EXISTS dbsize(name TEXT);
-CREATE OR REPLACE FUNCTION dbsize(a_name TEXT DEFAULT '') RETURNS TABLE(
-    name NAME -- f1
-    , owner name /* f2 */
-    , size TEXT
-    )
-LANGUAGE 'sql' AS $_$
--- a_name: имя БД
-SELECT d.datname
-,  pg_catalog.pg_get_userbyid(d.datdba)
-,  CASE WHEN pg_catalog.has_database_privilege(d.datname, 'CONNECT')
-        THEN pg_catalog.pg_size_pretty(pg_catalog.pg_database_size(d.datname))
-        ELSE 'No Access'
-    END
-FROM pg_catalog.pg_database d
-WHERE COALESCE(a_name,'') IN (d.datname, '')
-    ORDER BY
-    CASE WHEN pg_catalog.has_database_privilege(d.datname, 'CONNECT')
-        THEN pg_catalog.pg_database_size(d.datname)
-        ELSE NULL
-    END DESC -- nulls first
-    LIMIT 20
-$_$;
-
-
-CREATE OR REPLACE FUNCTION echo(
-  a_name   TEXT
-,  a_id     INTEGER DEFAULT 5
-) RETURNS TABLE(name TEXT, id INTEGER) LANGUAGE 'sql' AS
-$_$
-    SELECT $1, $2;
-$_$;
-
-CREATE OR REPLACE FUNCTION echo_jsonb(
-  a_name   TEXT
-,  a_id     INTEGER DEFAULT 5
-) RETURNS TABLE(name TEXT, id INTEGER, js jsonb) LANGUAGE 'sql' AS
-$_$
-    SELECT $1, $2, ' {"a": 2, "b": ["c", "d"]}'::jsonb;
-$_$;
-
-CREATE OR REPLACE FUNCTION echo_arr(
-  a_name   TEXT[]
-,  a_id     INTEGER DEFAULT 5
-) RETURNS TABLE(name TEXT[], id INTEGER) LANGUAGE 'sql' AS
-$_$
-    SELECT $1, $2;
-$_$;
-
-CREATE OR REPLACE FUNCTION echo_single(
- a_name   TEXT
-) RETURNS TEXT LANGUAGE 'sql' AS
-$_$
-    SELECT $1;
-$_$;
-/* ------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------- */
-
-SET client_min_messages to debug;
-SELECT * from dbsize();
-
-
-/*
-SELECT -- INTO v_args, v_src
-      pg_get_function_arguments(oid), prosrc, pg_get_function_result(oid)
-      FROM pg_catalog.pg_proc p
-        WHERE --p.pronamespace = ws.pg_schema_oid(split_part('public', '.', 1))
-        -- AND 
-        p.proname = 'dbsize'; -- split_part(a_code, '.', 2)
-*/
-
-
-select * from pg_func_args('public.dbsize');        
-select * from pg_func_args('public.pg_func_args');        
-select * from pg_func_result('public.pg_func_args');        
-select * from pg_func_result('public.dbsize');        
-
-select * from echo('test',1);
-select * from echo('test');
-select * from echo_jsonb('test');
-select echo_single('test');
-
-select * from echo_arr('{test1,test2}');
+COMMENT ON FUNCTION pg_func_result(a_code TEXT) IS 'Return function result definition';
