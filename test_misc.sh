@@ -53,6 +53,7 @@ EOF
 
 params_json() {
   local p=$1
+  [[ "$p" ]] || { echo '{}' ; return ; }
   set -f                      # avoid globbing (expansion of *).
   array=(${p//&/ })
   echo -n '{'
@@ -106,7 +107,7 @@ call() {
       echo $s
       [[ ${s#Content-Type: text/plain} != "$s" ]] && nojson=1
     elif [[ "$s" ]] ; then
-      pre && pre &&  echo "$s" | jq '.'
+      pre && prej &&  echo "$s" | jq '.'
     #    [[ "$s" ]] &&  echo "$s"
     fi
     echo -n ""
@@ -122,6 +123,10 @@ pre() {
   echo '```'
 }
 
+prej() {
+  echo '```json'
+}
+
 # ------------------------------------------------------------------------------
 
 process() {
@@ -130,6 +135,7 @@ process() {
   local method=${q%\?*}
   local params=${q#*\?}
 
+  [[ "$method" == "$q" ]] && params=""
   [[ "$method_pre" == "$method" ]] || { echo "## $method" && cr ; }
   method_pre=$method
 
@@ -138,15 +144,21 @@ process() {
   # remove name= suffix
   local pg=${params%&*=}
 
-  echo "### $pg" && cr
+  [[ "$pg" ]] && echo "### Arguments: $pg" && cr
   echo "#### GET" && cr && pre
-  call curl -is "$HOST/$method?$pg"
+
+  local uri=""
+  local arg1="{}"
+  local arg2=""
+
+  [[ "$pg" ]] && uri="?$pg" && arg1="$pj" && arg2=",\"params\":$pj"
+  call curl -is "$HOST/$method$uri"
 
   pre && cr && echo "#### Postgrest" && cr && pre
-  call curl -is -d "$pj" -H "Content-type: application/json" "$HOST/$method"
+  call curl -is -d $arg1 -H "Content-type: application/json" "$HOST/$method"
 
   pre && cr && echo "#### JSON-RPC 2.0" && cr && pre
-  local d='{"jsonrpc":"2.0","id":1,"method":"'$method'","params":'$pj'}'
+  local d='{"jsonrpc":"2.0","id":1,"method":"'$method'"'$arg2'}'
   echo "D='$d'"
   echo 'curl -is -d "$D" -H "Content-type: application/json"' "$HOST/" && cr
   call - curl -is -d "$d" -H "Content-type: application/json" "$HOST/"
