@@ -2,10 +2,26 @@
 #
 # Testing functions from crebas_misc.sql
 #
+# Usage:
+#  bash test_misc.sh
+#  TAG=- SRC=404 bash test_misc.sh
+#  TAG=- SRC=arr bash test_misc.sh
+#
 # Warning: элементы массива должны идти подряд, чтобы корректно получить JSON.
 # Поддерживаются только массивы из 2х элементов,
 # для массива из одного элемента в конфигу должен быть добавлен он же еще раз с пустым значением.
 # Такая пара должна идти последней
+
+# strict mode http://redsymbol.net/articles/unofficial-bash-strict-mode/
+
+# result destination
+[[ "$TAG" ]] || TAG="test_misc"
+
+# call source
+[[ "$SRC" ]] || SRC="-"
+
+# -o pipefail stops on 404 test
+set -eu
 
 HOST=http://localhost:8081/api
 
@@ -33,34 +49,6 @@ test_error
 EOF
 )
 
-Q1=$(cat <<EOF
-pg_func_args?code=public.dbsize
-echo?name=test&id=1
-echo_arr?name=test1&name=test2
-echo_arr?name=test1
-echo_arr?name=\{test1,t2\}
-EOF
-)
-
-Q1=$(cat <<EOF
-echo?name=test&id=1
-echo_arr?name=test1&name=test2
-echo_arr?name=test1&name=
-EOF
-)
-
-Q=$(cat <<EOF
-dbsize
-dbsize
-dbsize
-dbsize
-dbsize
-dbsize
-dbsize
-dbsize
-EOF
-)
-
 # ------------------------------------------------------------------------------
 
 params_json() {
@@ -71,6 +59,7 @@ params_json() {
   local key=""
   local out=""
   local was=""
+  local pre_key=""
   for e in "${array[@]}" ; do
     key=${e%=*}
 
@@ -99,8 +88,30 @@ params_json() {
 # ------------------------------------------------------------------------------
 
 call() {
-  echo $@ && cr
-  $@ | grep -vE "^Date: "
+
+  if [[ "$1" == "-" ]] ; then
+    shift
+  else
+    echo $@ && cr
+  fi
+  local header=1
+  local nojson=""
+  local s=""
+
+  (stdbuf -oL $@ | grep -vE "^Date: " | tr -d "\r" |
+  while IFS= read -r s
+  do
+    [[ "$s" ]] || { header="" && cr ; continue ; }
+    if [[ "$header" || "$nojson" ]] ; then
+      echo $s
+      [[ ${s#Content-Type: text/plain} != "$s" ]] && nojson=1
+    else
+      [[ "$s" ]] &&  echo "$s" | jq .
+    #  [[ "$s" ]] &&  echo "$s"
+    fi
+    echo -n ""
+  done)
+  # echo ">>>>" $?
 }
 
 cr() {
@@ -122,9 +133,10 @@ process() {
   [[ "$method_pre" == "$method" ]] || { echo "## $method" && cr ; }
   method_pre=$method
 
-  pj=$(params_json $params)
+  local pj=$(params_json $params)
 
-  pg=${params/%&*=/}
+  # remove name= suffix
+  local pg=${params%&*=}
 
   echo "### $pg" && cr
   echo "#### GET" && cr && pre
@@ -134,30 +146,34 @@ process() {
   call curl -is -d "$pj" -H "Content-type: application/json" "$HOST/$method"
 
   pre && cr && echo "#### JSON-RPC 2.0" && cr && pre
-  d='{"jsonrpc":"2.0","id":1,"method":"'$method'","params":'$pj'}'
+  local d='{"jsonrpc":"2.0","id":1,"method":"'$method'","params":'$pj'}'
   echo "D='$d'"
   echo 'curl -is -d "$D" -H "Content-type: application/json"' "$HOST/" && cr
-  curl -is -d "$d" -H "Content-type: application/json" "$HOST/" | grep -vE "^Date: "
+  call - curl -is -d "$d" -H "Content-type: application/json" "$HOST/"
 
   pre && cr
 }
 
 # ------------------------------------------------------------------------------
 
-[[ "$TAG" ]] || TAG="test_misc"
-
+if [[ "$SRC" != "-" ]] ; then
+  Q=$(cat test_${SRC}.dat)
+fi
+ERR=""
+OUT=""
 if [[ "$TAG" != "-" ]] ; then
- ERR="$TAG_$$.err"
+  ERR="${TAG}_$$.err"
   [ -f $ERR ] && rm $ERR
-
-  OUT="$TAG_$$.out"
+  OUT="${TAG}_$$.out"
 fi
 
-if [[ "$OUT" ]] ; then 
+if [[ "$OUT" ]] ; then
   echo "# crebas_misc.sql testing results" > $OUT
+  cr >> $OUT
   echo "Fetching data from server..."
 fi
 
+method_pre=""
 for q in $Q ; do
   [[ "$q" ]] || continue
   if [[ "$OUT" ]] ; then
@@ -167,14 +183,15 @@ for q in $Q ; do
     process $q
   fi
 done
+echo "------------------"
 cr
-[[ $OUT ]] || exit
+[[ "$OUT" ]] || { echo "no compare" ;  exit ; }
 
 diff -c test_misc.md $OUT > $ERR
 
 if [ -s $ERR ] ; then
   cat $ERR
-  echo "ERRORS found (see $ERR):"
+  echo "ERRORS found (see $ERR)"
 else
   echo "OK"
   rm $ERR

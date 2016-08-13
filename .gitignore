@@ -1,3 +1,5 @@
 .config
 dist
 dbrpc_*
+test_misc_*.*
+test_*.dat
