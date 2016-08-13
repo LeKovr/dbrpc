@@ -20,7 +20,7 @@ func cacheFetcher(log *logger.Log, cacheGroup *groupcache.Group) workman.WorkerF
 	// https://github.com/capotej/groupcache-db-experiment
 	return func(payload string) workman.Result {
 		var data []byte
-		log.Printf("asked for %s from groupcache", payload)
+		log.Debugf("asked for %s from groupcache", payload)
 		err := cacheGroup.Get(nil, payload,
 			groupcache.AllocatingByteSliceSink(&data))
 		var res workman.Result
@@ -60,7 +60,7 @@ func dbFetcher(cfg *AplFlags, log *logger.Log, db *pgx.Conn) groupcache.GetterFu
 		result = append(result, data...)
 
 		dd := result[1:]
-		log.Printf("Save data: %s", dd)
+		log.Debugf("Save data: %s", dd)
 		dest.SetBytes([]byte(result))
 		return nil
 	}
@@ -98,7 +98,7 @@ func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.Conn, key string) (data []b
 			err = rows.Err()
 			return
 		}
-		log.Printf("Func def: %s (%+v)", args[1], res)
+		log.Debugf("Func def: %s (%+v)", args[1], res)
 
 		data, err = json.Marshal(res)
 		if err != nil {
@@ -107,7 +107,7 @@ func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.Conn, key string) (data []b
 
 	} else {
 		q, vals := PrepareFuncSQL(cfg, args)
-		log.Printf("Query: %s (%+v)", q, vals)
+		log.Debugf("Query: %s (%+v)", q, vals)
 		rows, err = db.Query(q, vals...)
 		if err != nil {
 			return
@@ -162,9 +162,11 @@ func FetchSQLResult(rows *pgx.Rows, log *logger.Log) (data []byte, err error) {
 
 	var tableData []map[string]interface{}
 	for rows.Next() {
-		values, err := rows.Values()
+		var values []interface{}
+		values, err = rows.Values()
 		if err != nil {
 			log.Warningf("Value fetch error: %s", err.Error())
+			return
 		}
 		log.Debugf("Values: %+v", values)
 
