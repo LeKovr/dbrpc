@@ -98,16 +98,16 @@ call() {
   local nojson=""
   local s=""
 
-  (stdbuf -oL $@ | grep -vE "^Date: " | tr -d "\r" |
+  (stdbuf -o0 $@ | grep -vE "^Date: " | tr -d "\r" |
   while IFS= read -r s
   do
     [[ "$s" ]] || { header="" && cr ; continue ; }
     if [[ "$header" || "$nojson" ]] ; then
       echo $s
       [[ ${s#Content-Type: text/plain} != "$s" ]] && nojson=1
-    else
-      [[ "$s" ]] &&  echo "$s" | jq .
-    #  [[ "$s" ]] &&  echo "$s"
+    elif [[ "$s" ]] ; then
+      pre && pre &&  echo "$s" | jq '.'
+    #    [[ "$s" ]] &&  echo "$s"
     fi
     echo -n ""
   done)
@@ -154,6 +154,14 @@ process() {
   pre && cr
 }
 
+toc() {
+  local q=$1
+  local method=${q%\?*}
+
+  [[ "$method_pre" == "$method" ]] || echo "* [$method](#$method)"
+  method_pre=$method
+}
+
 # ------------------------------------------------------------------------------
 
 if [[ "$SRC" != "-" ]] ; then
@@ -177,6 +185,16 @@ method_pre=""
 for q in $Q ; do
   [[ "$q" ]] || continue
   if [[ "$OUT" ]] ; then
+    toc $q >> $OUT
+  fi
+done
+
+[[ "$OUT" ]] && cr && cr >> $OUT
+
+method_pre=""
+for q in $Q ; do
+  [[ "$q" ]] || continue
+  if [[ "$OUT" ]] ; then
     echo $q
     process $q >> $OUT
   else
@@ -186,8 +204,7 @@ done
 echo "------------------"
 cr
 [[ "$OUT" ]] || { echo "no compare" ;  exit ; }
-
-diff -c test_misc.md $OUT > $ERR
+diff -c -I "^X-Elapsed" test_misc.md $OUT > $ERR || echo "***************************************************"
 
 if [ -s $ERR ] ; then
   cat $ERR

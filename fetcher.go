@@ -31,8 +31,12 @@ func cacheFetcher(log *logger.Log, cacheGroup *groupcache.Group) workman.WorkerF
 		} else {
 			d := data[1:]
 			raw := json.RawMessage(d)
-			// First byte stores success state (1: true, 0: false)
-			res = workman.Result{Success: data[0] == 1, Result: &raw}
+			ok := data[0] == 1
+			if ok { // First byte stores success state (1: true, 0: false)
+				res = workman.Result{Success: ok, Result: &raw}
+			} else {
+				res = workman.Result{Success: ok, Error: &raw}
+			}
 		}
 		return res
 	}

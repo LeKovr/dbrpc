@@ -198,6 +198,7 @@ func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w ht
 			out, _ = json.Marshal(e)
 		}
 		setMetric(w, start, http.StatusOK)
+		log.Debug("Start writing")
 		w.Write(out)
 		//w.Write([]byte("\n"))
 	} else {
@@ -284,10 +285,10 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 
 		out, _ = json.Marshal(resultRPC)
 	}
-	log.Debugf("JSON Resp: %s", string(out))
-
 	setMetric(w, start, resultStatus)
+	log.Debug("Start writing")
 	w.Write(out)
+	log.Debugf("JSON Resp: %s", string(out))
 	//w.Write([]byte("\n"))
 }
 
@@ -348,8 +349,9 @@ func postgrestContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job
 		out, _ = json.Marshal(resultRPC)
 	}
 	setMetric(w, start, resultStatus)
-	log.Debugf("JSON Resp: %s", string(out))
+	log.Debug("Start writing")
 	w.Write(out)
+	log.Debugf("JSON Resp: %s", string(out))
 	//w.Write([]byte("\n"))
 }
 

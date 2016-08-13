@@ -1,5 +1,15 @@
 # crebas_misc.sql testing results
 
+* [pg_func_args](#pg_func_args)
+* [pg_func_result](#pg_func_result)
+* [dbsize](#dbsize)
+* [echo](#echo)
+* [echo_jsonb](#echo_jsonb)
+* [echo_single](#echo_single)
+* [echo_arr](#echo_arr)
+* [echo_not_found](#echo_not_found)
+* [test_error](#test_error)
+
 ## pg_func_args
 
 ### code=public.dbsize
@@ -11,9 +21,11 @@ curl -is http://localhost:8081/api/pg_func_args?code=public.dbsize
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 433.392µs
+X-Elapsed: 18.770643ms
 Content-Length: 95
 
+```
+```
 {
   "result": [
     {
@@ -35,9 +47,11 @@ curl -is -d {"code":"public.dbsize"} -H Content-type: application/json http://lo
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 254.079µs
+X-Elapsed: 290.939µs
 Content-Length: 69
 
+```
+```
 [
   {
     "AllowNull": false,
@@ -57,9 +71,11 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 734.051µs
+X-Elapsed: 309.214µs
 Content-Length: 103
 
+```
+```
 {
   "result": [
     {
@@ -84,9 +100,11 @@ curl -is http://localhost:8081/api/pg_func_args?code=public.pg_func_args
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 332.831µs
+X-Elapsed: 286.021µs
 Content-Length: 169
 
+```
+```
 {
   "result": [
     {
@@ -115,9 +133,11 @@ curl -is -d {"code":"public.pg_func_args"} -H Content-type: application/json htt
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 268.167µs
+X-Elapsed: 291.234µs
 Content-Length: 143
 
+```
+```
 [
   {
     "AllowNull": false,
@@ -144,9 +164,11 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 313.701µs
+X-Elapsed: 324.854µs
 Content-Length: 177
 
+```
+```
 {
   "result": [
     {
@@ -180,9 +202,11 @@ curl -is http://localhost:8081/api/pg_func_result?code=public.pg_func_args
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 286.935µs
+X-Elapsed: 8.670135ms
 Content-Length: 215
 
+```
+```
 {
   "result": [
     {
@@ -221,9 +245,11 @@ curl -is -d {"code":"public.pg_func_args"} -H Content-type: application/json htt
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 884.806µs
+X-Elapsed: 572.017µs
 Content-Length: 189
 
+```
+```
 [
   {
     "type": "TABLE",
@@ -260,9 +286,11 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 396.522µs
+X-Elapsed: 441.608µs
 Content-Length: 223
 
+```
+```
 {
   "result": [
     {
@@ -304,9 +332,11 @@ curl -is http://localhost:8081/api/pg_func_result?code=public.dbsize
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 373.247µs
+X-Elapsed: 4.454424ms
 Content-Length: 147
 
+```
+```
 {
   "result": [
     {
@@ -337,9 +367,11 @@ curl -is -d {"code":"public.dbsize"} -H Content-type: application/json http://lo
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 252.151µs
+X-Elapsed: 523.897µs
 Content-Length: 121
 
+```
+```
 [
   {
     "type": "TABLE",
@@ -368,9 +400,11 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 1.80097ms
+X-Elapsed: 218.632µs
 Content-Length: 155
 
+```
+```
 {
   "result": [
     {
@@ -406,9 +440,11 @@ curl -is http://localhost:8081/api/dbsize?name=template1
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 922.327µs
+X-Elapsed: 4.6524ms
 Content-Length: 84
 
+```
+```
 {
   "result": [
     {
@@ -428,9 +464,11 @@ curl -is -d {"name":"template1"} -H Content-type: application/json http://localh
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 747.445µs
+X-Elapsed: 468.602µs
 Content-Length: 58
 
+```
+```
 [
   {
     "size": "6873 kB",
@@ -448,9 +486,11 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 1.023268ms
+X-Elapsed: 344.513µs
 Content-Length: 92
 
+```
+```
 {
   "result": [
     {
@@ -473,9 +513,11 @@ curl -is http://localhost:8081/api/dbsize?name=template1
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 880.968µs
+X-Elapsed: 254.071µs
 Content-Length: 84
 
+```
+```
 {
   "result": [
     {
@@ -495,9 +537,11 @@ curl -is -d {"name":"template1"} -H Content-type: application/json http://localh
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 333.079µs
+X-Elapsed: 267.825µs
 Content-Length: 58
 
+```
+```
 [
   {
     "size": "6873 kB",
@@ -515,9 +559,11 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 429.84µs
+X-Elapsed: 286.894µs
 Content-Length: 92
 
+```
+```
 {
   "result": [
     {
@@ -542,9 +588,11 @@ curl -is http://localhost:8081/api/echo?name=test&id=1
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 269.389µs
+X-Elapsed: 2.815058ms
 Content-Length: 50
 
+```
+```
 {
   "result": [
     {
@@ -563,9 +611,11 @@ curl -is -d {"name":"test","id":"1"} -H Content-type: application/json http://lo
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 1.036179ms
+X-Elapsed: 240.733µs
 Content-Length: 24
 
+```
+```
 [
   {
     "name": "test",
@@ -582,9 +632,11 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 799.25µs
+X-Elapsed: 714.643µs
 Content-Length: 58
 
+```
+```
 {
   "result": [
     {
@@ -606,9 +658,11 @@ curl -is http://localhost:8081/api/echo?name=test
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 236.373µs
+X-Elapsed: 1.76672ms
 Content-Length: 50
 
+```
+```
 {
   "result": [
     {
@@ -627,9 +681,11 @@ curl -is -d {"name":"test"} -H Content-type: application/json http://localhost:8
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 433.086µs
+X-Elapsed: 279.535µs
 Content-Length: 24
 
+```
+```
 [
   {
     "name": "test",
@@ -646,9 +702,11 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 269.538µs
+X-Elapsed: 212.589µs
 Content-Length: 58
 
+```
+```
 {
   "result": [
     {
@@ -672,9 +730,11 @@ curl -is http://localhost:8081/api/echo_jsonb?name=test
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 248.487µs
+X-Elapsed: 3.423037ms
 Content-Length: 77
 
+```
+```
 {
   "result": [
     {
@@ -700,9 +760,11 @@ curl -is -d {"name":"test"} -H Content-type: application/json http://localhost:8
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 281.817µs
+X-Elapsed: 395.081µs
 Content-Length: 51
 
+```
+```
 [
   {
     "name": "test",
@@ -726,9 +788,11 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 233.221µs
+X-Elapsed: 289.449µs
 Content-Length: 85
 
+```
+```
 {
   "result": [
     {
@@ -759,9 +823,11 @@ curl -is http://localhost:8081/api/echo_single?name=test
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 240.478µs
+X-Elapsed: 4.63102ms
 Content-Length: 50
 
+```
+```
 {
   "result": [
     {
@@ -779,9 +845,11 @@ curl -is -d {"name":"test"} -H Content-type: application/json http://localhost:8
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 976.235µs
+X-Elapsed: 260.73µs
 Content-Length: 24
 
+```
+```
 [
   {
     "echo_single": "test"
@@ -797,9 +865,11 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 734.205µs
+X-Elapsed: 279.738µs
 Content-Length: 58
 
+```
+```
 {
   "result": [
     {
@@ -822,9 +892,11 @@ curl -is http://localhost:8081/api/echo_arr?name=test1&name=test2
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 616.845µs
+X-Elapsed: 7.19387ms
 Content-Length: 61
 
+```
+```
 {
   "result": [
     {
@@ -846,9 +918,11 @@ curl -is -d {"name":["test1","test2"]} -H Content-type: application/json http://
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 251.438µs
+X-Elapsed: 560.714µs
 Content-Length: 35
 
+```
+```
 [
   {
     "name": [
@@ -868,9 +942,11 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 253.942µs
+X-Elapsed: 435.012µs
 Content-Length: 69
 
+```
+```
 {
   "result": [
     {
@@ -895,9 +971,11 @@ curl -is http://localhost:8081/api/echo_arr?name=test1
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 279.821µs
+X-Elapsed: 1.524273ms
 Content-Length: 53
 
+```
+```
 {
   "result": [
     {
@@ -918,9 +996,11 @@ curl -is -d {"name":["test1"]} -H Content-type: application/json http://localhos
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 333.144µs
+X-Elapsed: 290.675µs
 Content-Length: 27
 
+```
+```
 [
   {
     "name": [
@@ -939,9 +1019,11 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 357.134µs
+X-Elapsed: 395.978µs
 Content-Length: 61
 
+```
+```
 {
   "result": [
     {
@@ -994,9 +1076,11 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 404 Not Found
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 215.393µs
+X-Elapsed: 204.986µs
 Content-Length: 152
 
+```
+```
 {
   "error": {
     "data": "ERROR: Function not found: public.echo_not_found (SQLSTATE P0001)",
@@ -1019,9 +1103,11 @@ curl -is http://localhost:8081/api/test_error?test_error
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 214.366µs
+X-Elapsed: 3.594897ms
 Content-Length: 121
 
+```
+```
 {
   "error": "ERROR: prepared statement \"SELECT $1 FROM table_not_exists\" does not exist (SQLSTATE 26000)",
   "success": false
@@ -1035,9 +1121,11 @@ curl -is -d {"test_error":"test_error"} -H Content-type: application/json http:/
 
 HTTP/1.1 400 Bad Request
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 205.857µs
+X-Elapsed: 285.204µs
 Content-Length: 137
 
+```
+```
 {
   "details": "ERROR: prepared statement \"SELECT $1 FROM table_not_exists\" does not exist (SQLSTATE 26000)",
   "message": "Method call error"
@@ -1052,9 +1140,11 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 312.057µs
+X-Elapsed: 229.593µs
 Content-Length: 178
 
+```
+```
 {
   "error": {
     "data": "ERROR: prepared statement \"SELECT $1 FROM table_not_exists\" does not exist (SQLSTATE 26000)",
@@ -1065,4 +1155,3 @@ Content-Length: 178
   "id": 1
 }
 ```
-
