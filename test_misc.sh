@@ -53,7 +53,6 @@ EOF
 
 params_json() {
   local p=$1
-  [[ "$p" ]] || { echo '{}' ; return ; }
   set -f                      # avoid globbing (expansion of *).
   array=(${p//&/ })
   echo -n '{'
@@ -139,10 +138,12 @@ process() {
   [[ "$method_pre" == "$method" ]] || { echo "## $method" && cr ; }
   method_pre=$method
 
-  local pj=$(params_json $params)
-
   # remove name= suffix
   local pg=${params%&*=}
+
+  local pj="{}"
+  [[ "$pg" ]] && pj=$(params_json $params)
+
 
   [[ "$pg" ]] && echo "### Arguments: $pg" && cr
   echo "#### GET" && cr && pre
@@ -151,11 +152,11 @@ process() {
   local arg1="{}"
   local arg2=""
 
-  [[ "$pg" ]] && uri="?$pg" && arg1="$pj" && arg2=",\"params\":$pj"
+  [[ "$pg" ]] && uri="?$pg" && arg2=",\"params\":$pj"
   call curl -is "$HOST/$method$uri"
 
   pre && cr && echo "#### Postgrest" && cr && pre
-  call curl -is -d $arg1 -H "Content-type: application/json" "$HOST/$method"
+  call curl -is -d "$pj" -H "Content-type: application/json" "$HOST/$method"
 
   pre && cr && echo "#### JSON-RPC 2.0" && cr && pre
   local d='{"jsonrpc":"2.0","id":1,"method":"'$method'"'$arg2'}'
