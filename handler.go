@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 	"strings"
+	"time"
 
 	"github.com/LeKovr/dbrpc/workman"
 	"github.com/LeKovr/go-base/logger"
@@ -25,6 +27,34 @@ type ArgDef struct {
 // FuncArgDef holds set of function argument attributes
 type FuncArgDef []ArgDef
 
+// JSON-RPC v2.0 structures
+type reqParams map[string]interface{}
+
+type serverRequest struct {
+	Method  string    `json:"method"`
+	Version string    `json:"jsonrpc"`
+	ID      uint64    `json:"id"`
+	Params  reqParams `json:"params"`
+}
+
+type serverResponse struct {
+	ID      uint64           `json:"id"`
+	Version string           `json:"jsonrpc"`
+	Result  *json.RawMessage `json:"result,omitempty"`
+	Error   *json.RawMessage `json:"error,omitempty"`
+}
+
+type respRPCError struct {
+	Code    int              `json:"code"`
+	Message string           `json:"message"`
+	Data    *json.RawMessage `json:"data,omitempty"`
+}
+type respPGTError struct {
+	Message string `json:"message"`
+	Code    string `json:"code,omitempty"`
+	Details string `json:"details,omitempty"`
+}
+
 // -----------------------------------------------------------------------------
 
 // FunctionDef creates a job for fetching of function argument definition
@@ -41,7 +71,7 @@ func FunctionDef(cfg *AplFlags, log *logger.Log, jc chan workman.Job, method str
 	jc <- work
 
 	resp := <-respChannel
-	log.Printf("Got def: %s", resp.Result)
+	log.Debugf("Got def: %s", resp.Result)
 	if !resp.Success {
 		return nil, resp.Error
 	}
@@ -75,12 +105,12 @@ func FunctionResult(jc chan workman.Job, payload string) workman.Result {
 func httpHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		log.Printf("Request method: %s", r.Method)
+		log.Debugf("Request method: %s", r.Method)
 		if r.Method == "GET" {
 			getContextHandler(cfg, log, jc, w, r, true)
 		} else if r.Method == "HEAD" {
 			getContextHandler(cfg, log, jc, w, r, false) // Like get but without data
-		} else if r.Method == "POST" && r.URL.Path == "/" {
+		} else if r.Method == "POST" && r.URL.Path == cfg.Prefix {
 			postContextHandler(cfg, log, jc, w, r)
 		} else if r.Method == "POST" {
 			postgrestContextHandler(cfg, log, jc, w, r)
@@ -97,14 +127,14 @@ func httpHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job) http.Handl
 // -----------------------------------------------------------------------------
 
 func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w http.ResponseWriter, r *http.Request, reply bool) {
+	start := time.Now()
 
-	//	method := strings.TrimPrefix(strings.TrimPrefix(r.URL.Path, cfg.Prefix), "/")
 	method := strings.TrimPrefix(r.URL.Path, cfg.Prefix)
-	log.Printf("GotREquest %s (%s)", method, r.URL.Path)
 
 	argDef, errd := FunctionDef(cfg, log, jc, method)
 	if errd != nil {
-		log.Warnf("Method %s load def error: %s", method, errd)
+		// Warning was when fetched from db
+		log.Infof("Method %s load def error: %s", method, errd)
 		http.NotFound(w, r)
 		return
 	}
@@ -124,8 +154,13 @@ func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w ht
 				break // use defaults
 			}
 			key = append(key, nil) // TODO: nil does not replaced with default
+		} else if strings.HasSuffix(a.Type, "[]") {
+			// convert array into string
+			// TODO: escape ","
+			s := "{" + strings.Join(v, ",") + "}"
+			key = append(key, &s)
 		} else {
-			key = append(key, &v[0]) // TODO: array support
+			key = append(key, &v[0])
 		}
 
 		log.Debugf("Arg: %+v (%d)", v, len(f404))
@@ -135,22 +170,31 @@ func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w ht
 		result = workman.Result{Success: false, Error: fmt.Sprintf("Required parameter(s) %+v not found", f404)}
 	} else {
 		payload, _ := json.Marshal(key)
-		log.Infof("Args: %s", string(payload))
+		log.Debugf("Args: %s", string(payload))
 		result = FunctionResult(jc, string(payload))
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
 	if reply {
 		out, err := json.Marshal(result)
 		if err != nil {
-			log.Println("Marshall error: ", err)
+			log.Warnf("Marshall error: %+v", err)
 			e := workman.Result{Success: false, Error: err.Error()}
 			out, _ = json.Marshal(e)
 		}
+		setMetric(w, start, http.StatusOK)
 		w.Write(out)
-		w.Write([]byte("\n"))
+		//w.Write([]byte("\n"))
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
+}
+
+// -----------------------------------------------------------------------------
+
+func setMetric(w http.ResponseWriter, start time.Time, status int) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set("X-Elapsed", fmt.Sprint(time.Since(start)))
+	w.WriteHeader(http.StatusOK)
 }
 
 // -----------------------------------------------------------------------------
@@ -192,6 +236,8 @@ func getRaw(data interface{}) *json.RawMessage {
 // postContextHandler serve JSON-RPC envelope
 func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w http.ResponseWriter, r *http.Request) {
 
+	start := time.Now()
+
 	data, _ := ioutil.ReadAll(r.Body)
 	req := serverRequest{}
 	err := json.Unmarshal(data, &req)
@@ -202,8 +248,6 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
 	resultRPC := serverResponse{ID: req.ID, Version: req.Version}
 
 	argDef, errd := FunctionDef(cfg, log, jc, req.Method)
@@ -212,25 +256,13 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 		resultRPC.Error = getRaw(respRPCError{Code: -32601, Message: errd.(string)})
 	} else {
 		// Load args
-		key := []string{req.Method}
 		r.ParseForm()
-		f404 := []string{}
-		for _, a := range argDef {
-			v, ok := req.Params[a.Name]
-			if !ok {
-				if !a.AllowNull && a.Default == nil {
-					f404 = append(f404, a.Name)
-				}
-				key = append(key, "") // TODO: nil
-			} else {
-				key = append(key, v.(string))
-			}
-		}
-
+		key, f404 := fetchArgs(argDef, req.Params, req.Method)
 		if len(f404) > 0 {
 			resultRPC.Error = getRaw(respRPCError{Code: -32602, Message: "Required parameter(s) not found", Data: getRaw(f404)})
 		} else {
 			payload, _ := json.Marshal(key)
+			log.Debugf("Args: %s", string(payload))
 			res := FunctionResult(jc, string(payload))
 			if res.Success {
 				resultRPC.Result = res.Result
@@ -238,20 +270,21 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 				resultRPC.Error = getRaw(respRPCError{Code: -32603, Message: "Internal Error", Data: getRaw(res.Error)})
 			}
 		}
-
 	}
 
 	out, err := json.Marshal(resultRPC)
 	if err != nil {
-		log.Println("Marshall error: ", err)
+		log.Warnf("Marshall error: %+v", err)
 		resultRPC.Result = nil
 		resultRPC.Error = getRaw(respRPCError{Code: -32603, Message: "Internal Error", Data: getRaw(err.Error())})
 
 		out, _ = json.Marshal(resultRPC)
 	}
 	log.Debugf("JSON Resp: %s", string(out))
+
+	setMetric(w, start, http.StatusOK)
 	w.Write(out)
-	w.Write([]byte("\n"))
+	//w.Write([]byte("\n"))
 }
 
 // -----------------------------------------------------------------------------
@@ -259,6 +292,8 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 // postgrestContextHandler serve JSON-RPC envelope
 // 404 when method not found
 func postgrestContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w http.ResponseWriter, r *http.Request) {
+
+	start := time.Now()
 
 	method := strings.TrimPrefix(r.URL.Path, cfg.Prefix)
 	log.Debugf("postgrest call for %s", method)
@@ -269,42 +304,28 @@ func postgrestContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job
 		http.NotFound(w, r)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	resultStatus := http.StatusOK
 
-	req := map[string]string{}
+	req := reqParams{}
 	var resultRPC interface{}
 
 	data, _ := ioutil.ReadAll(r.Body)
 	err := json.Unmarshal(data, &req)
+
 	if err != nil {
 		e := fmt.Sprintf("json parse error: %s", err)
 		log.Warn(e)
 		resultRPC = respPGTError{Message: "Cannot parse request payload", Details: e}
 		resultStatus = http.StatusBadRequest
 	} else {
-
 		// Load args
-		key := []string{method}
-		f404 := []string{}
-		for _, a := range argDef {
-			v, ok := req[a.Name]
-			if !ok {
-				if !a.AllowNull && a.Default == nil {
-					f404 = append(f404, a.Name)
-				}
-				key = append(key, "") // TODO: nil
-			} else {
-				key = append(key, v)
-			}
-		}
-
+		key, f404 := fetchArgs(argDef, req, method)
 		if len(f404) > 0 {
 			resultRPC = respPGTError{Code: "42883", Message: "Required parameter(s) not found", Details: strings.Join(f404, ", ")}
 			resultStatus = http.StatusBadRequest
 		} else {
 			payload, _ := json.Marshal(key)
+			log.Debugf("Args: %s", string(payload))
 			res := FunctionResult(jc, string(payload))
 			if res.Success {
 				resultRPC = res.Result
@@ -313,45 +334,68 @@ func postgrestContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job
 				resultStatus = http.StatusBadRequest // TODO: ?
 			}
 		}
-
 	}
 
 	out, err := json.Marshal(resultRPC)
 	if err != nil {
-		log.Println("Marshall error: ", err)
+		log.Warnf("Marshall error: %+v", err)
 		resultRPC = respPGTError{Message: "Method result marshall error", Details: err.Error()}
 		resultStatus = http.StatusBadRequest // TODO: ?
 		out, _ = json.Marshal(resultRPC)
 	}
-	w.WriteHeader(resultStatus)
+	setMetric(w, start, resultStatus)
 	log.Debugf("JSON Resp: %s", string(out))
 	w.Write(out)
-	w.Write([]byte("\n"))
+	//w.Write([]byte("\n"))
 }
 
-// JSON-RPC v2.0 structures
+func fetchArgs(argDef FuncArgDef, req reqParams, method string) ([]*string, []string) {
 
-type serverRequest struct {
-	Method  string                 `json:"method"`
-	Version string                 `json:"jsonrpc"`
-	ID      uint64                 `json:"id"`
-	Params  map[string]interface{} `json:"params"`
-}
+	key := []*string{&method}
+	f404 := []string{}
 
-type serverResponse struct {
-	ID      uint64           `json:"id"`
-	Version string           `json:"jsonrpc"`
-	Result  *json.RawMessage `json:"result,omitempty"`
-	Error   *json.RawMessage `json:"error,omitempty"`
-}
+	for _, a := range argDef {
+		v, ok := req[a.Name]
+		if !ok {
+			if !a.AllowNull && a.Default == nil {
+				f404 = append(f404, a.Name)
+			} else if a.Default != nil {
+				//log.Debugf("Arg: %s use default", a.Name)
+				break // use defaults
+			}
+			key = append(key, nil) // TODO: nil does not replaced with default
+		} else if strings.HasSuffix(a.Type, "[]") {
+			// wait slice
+			s := reflect.ValueOf(v)
+			if s.Kind() != reflect.Slice {
+				// string or {string}
+				vs := v.(string)
 
-type respRPCError struct {
-	Code    int              `json:"code"`
-	Message string           `json:"message"`
-	Data    *json.RawMessage `json:"data,omitempty"`
-}
-type respPGTError struct {
-	Message string `json:"message"`
-	Code    string `json:"code,omitempty"`
-	Details string `json:"details,omitempty"`
+				// // convert scalar to postgres array
+				// asArray = regexp.MustCompile(`^\{.+\}$`)
+				// if !asArray.MatchString(vs) {
+				// 	vs = "{" + vs + "}"
+				// }
+				key = append(key, &vs)
+			} else {
+				// slice
+				ret := make([]string, s.Len())
+
+				for i := 0; i < s.Len(); i++ {
+					ret[i] = s.Index(i).Interface().(string)
+					//	log.Printf("====== %+v", ret[i])
+				}
+				// convert array into string
+				// TODO: escape ","
+				ss := "{" + strings.Join(ret, ",") + "}"
+				key = append(key, &ss)
+			}
+		} else {
+			s := v.(string)
+			key = append(key, &s)
+		}
+
+		//log.Debugf("Arg: %+v (%d)", v, len(f404))
+	}
+	return key, f404
 }
