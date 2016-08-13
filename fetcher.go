@@ -30,12 +30,9 @@ func cacheFetcher(log *logger.Log, cacheGroup *groupcache.Group) workman.WorkerF
 			res = workman.Result{Success: false, Error: "This internal error must be catched earlier. Please contact vendor"}
 		} else {
 			d := data[1:]
-			if data[0] == 1 { // First byte stores success state (1: true, 0: false)
-				raw := json.RawMessage(d)
-				res = workman.Result{Success: true, Result: &raw}
-			} else {
-				res = workman.Result{Success: false, Error: string(d)}
-			}
+			raw := json.RawMessage(d)
+			// First byte stores success state (1: true, 0: false)
+			res = workman.Result{Success: data[0] == 1, Result: &raw}
 		}
 		return res
 	}
@@ -165,7 +162,7 @@ func FetchSQLResult(rows *pgx.Rows, log *logger.Log) (data []byte, err error) {
 		var values []interface{}
 		values, err = rows.Values()
 		if err != nil {
-			log.Warningf("Value fetch error: %s", err.Error())
+			log.Warnf("Value fetch error: %s", err.Error())
 			return
 		}
 		log.Debugf("Values: %+v", values)

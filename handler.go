@@ -50,9 +50,9 @@ type respRPCError struct {
 	Data    *json.RawMessage `json:"data,omitempty"`
 }
 type respPGTError struct {
-	Message string `json:"message"`
-	Code    string `json:"code,omitempty"`
-	Details string `json:"details,omitempty"`
+	Message string           `json:"message"`
+	Code    string           `json:"code,omitempty"`
+	Details *json.RawMessage `json:"details,omitempty"`
 }
 
 // -----------------------------------------------------------------------------
@@ -126,6 +126,22 @@ func httpHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job) http.Handl
 
 // -----------------------------------------------------------------------------
 
+func setMetric(w http.ResponseWriter, start time.Time, status int) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set("X-Elapsed", fmt.Sprint(time.Since(start)))
+	w.WriteHeader(status)
+}
+
+// -----------------------------------------------------------------------------
+
+func getRaw(data interface{}) *json.RawMessage {
+	j, _ := json.Marshal(data)
+	raw := json.RawMessage(j)
+	return &raw
+}
+
+// -----------------------------------------------------------------------------
+
 func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w http.ResponseWriter, r *http.Request, reply bool) {
 	start := time.Now()
 
@@ -191,14 +207,6 @@ func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w ht
 
 // -----------------------------------------------------------------------------
 
-func setMetric(w http.ResponseWriter, start time.Time, status int) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.Header().Set("X-Elapsed", fmt.Sprint(time.Since(start)))
-	w.WriteHeader(http.StatusOK)
-}
-
-// -----------------------------------------------------------------------------
-
 func optionsContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w http.ResponseWriter, r *http.Request) {
 
 	origin := r.Header.Get("Origin")
@@ -225,12 +233,6 @@ func optionsContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, 
 	return
 }
 
-func getRaw(data interface{}) *json.RawMessage {
-	j, _ := json.Marshal(data)
-	raw := json.RawMessage(j)
-	return &raw
-}
-
 // -----------------------------------------------------------------------------
 
 // postContextHandler serve JSON-RPC envelope
@@ -249,11 +251,13 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 	}
 
 	resultRPC := serverResponse{ID: req.ID, Version: req.Version}
+	resultStatus := http.StatusOK
 
 	argDef, errd := FunctionDef(cfg, log, jc, req.Method)
 	if errd != nil {
 		log.Warnf("Method %s load def error: %s", req.Method, errd)
-		resultRPC.Error = getRaw(respRPCError{Code: -32601, Message: errd.(string)})
+		resultRPC.Error = getRaw(respRPCError{Code: -32601, Message: "Method not found", Data: getRaw(errd)})
+		resultStatus = http.StatusNotFound
 	} else {
 		// Load args
 		r.ParseForm()
@@ -282,7 +286,7 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 	}
 	log.Debugf("JSON Resp: %s", string(out))
 
-	setMetric(w, start, http.StatusOK)
+	setMetric(w, start, resultStatus)
 	w.Write(out)
 	//w.Write([]byte("\n"))
 }
@@ -315,13 +319,13 @@ func postgrestContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job
 	if err != nil {
 		e := fmt.Sprintf("json parse error: %s", err)
 		log.Warn(e)
-		resultRPC = respPGTError{Message: "Cannot parse request payload", Details: e}
+		resultRPC = respPGTError{Message: "Cannot parse request payload", Details: getRaw(e)}
 		resultStatus = http.StatusBadRequest
 	} else {
 		// Load args
 		key, f404 := fetchArgs(argDef, req, method)
 		if len(f404) > 0 {
-			resultRPC = respPGTError{Code: "42883", Message: "Required parameter(s) not found", Details: strings.Join(f404, ", ")}
+			resultRPC = respPGTError{Code: "42883", Message: "Required parameter(s) not found", Details: getRaw(strings.Join(f404, ", "))}
 			resultStatus = http.StatusBadRequest
 		} else {
 			payload, _ := json.Marshal(key)
@@ -330,7 +334,7 @@ func postgrestContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job
 			if res.Success {
 				resultRPC = res.Result
 			} else {
-				resultRPC = respPGTError{Message: "Method call error", Details: res.Error.(string)}
+				resultRPC = respPGTError{Message: "Method call error", Details: getRaw(res.Error)}
 				resultStatus = http.StatusBadRequest // TODO: ?
 			}
 		}
@@ -339,7 +343,7 @@ func postgrestContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job
 	out, err := json.Marshal(resultRPC)
 	if err != nil {
 		log.Warnf("Marshall error: %+v", err)
-		resultRPC = respPGTError{Message: "Method result marshall error", Details: err.Error()}
+		resultRPC = respPGTError{Message: "Method result marshall error", Details: getRaw(err)}
 		resultStatus = http.StatusBadRequest // TODO: ?
 		out, _ = json.Marshal(resultRPC)
 	}
