@@ -26,6 +26,8 @@ func cacheFetcher(log *logger.Log, cacheGroup *groupcache.Group) workman.WorkerF
 		var res workman.Result
 		if err != nil {
 			res = workman.Result{Success: false, Error: err.Error()}
+		} else if len(data) == 0 {
+			res = workman.Result{Success: false, Error: "This internal error must be catched earlier. Please contact vendor"}
 		} else {
 			d := data[1:]
 			if data[0] == 1 { // First byte stores success state (1: true, 0: false)
@@ -45,58 +47,16 @@ func dbFetcher(cfg *AplFlags, log *logger.Log, db *pgx.Conn) groupcache.GetterFu
 	return func(ctx groupcache.Context, key string, dest groupcache.Sink) error {
 		log.Printf("asking for %s from dbserver", key)
 
-		var args []string
-		var data []byte
+		var isOk byte = 1 // status: success
 
-		//err := json.Unmarshal(key, &args)
-		json.Unmarshal([]byte(key), &args)
-
-		if args[0] == cfg.ArgDefFunc {
-
-			q := fmt.Sprintf("select * from %s.%s($1)", cfg.Schema, args[0])
-
-			rows, err := db.Query(q, args[1])
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-
-			var res []ArgDef
-			for rows.Next() {
-				var a ArgDef
-				err = rows.Scan(&a.ID, &a.Name, &a.Type, &a.Default, &a.AllowNull)
-				if err != nil {
-					log.Printf("Func err: (%+v)", rows)
-					return err
-				}
-				res = append(res, a)
-			}
-			if rows.Err() != nil {
-				return err
-			}
-			log.Printf("Func def: %s (%+v)", args[1], res)
-
-			data, err = json.Marshal(res)
-			if err != nil {
-				return err
-			}
-
-		} else {
-			q, vals := PrepareFuncSQL(cfg, args)
-			log.Printf("Query: %s (%+v)", q, vals)
-			rows, err := db.Query(q, vals...)
-			if err != nil {
-				return err
-			}
-
-			data, err = FetchSQLResult(rows, log)
-			defer rows.Close()
-			if err != nil {
-				return err
-			}
-
+		data, err := dbQuery(cfg, log, db, key)
+		if err != nil {
+			log.Warnf("Query for key %s error: %+v", key, err)
+			isOk = 0
+			data, _ = json.Marshal(err.Error())
 		}
-		result := []byte{1} // status: success
+
+		result := []byte{isOk}
 		result = append(result, data...)
 
 		dd := result[1:]
@@ -104,6 +64,64 @@ func dbFetcher(cfg *AplFlags, log *logger.Log, db *pgx.Conn) groupcache.GetterFu
 		dest.SetBytes([]byte(result))
 		return nil
 	}
+}
+
+func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.Conn, key string) (data []byte, err error) {
+	var args []string
+	var rows *pgx.Rows
+
+	err = json.Unmarshal([]byte(key), &args)
+	if err != nil {
+		return
+	}
+
+	if args[0] == cfg.ArgDefFunc {
+
+		q := fmt.Sprintf("select * from %s.%s($1)", cfg.Schema, args[0])
+
+		rows, err = db.Query(q, args[1])
+		defer rows.Close()
+		if err != nil {
+			return
+		}
+
+		var res []ArgDef
+		for rows.Next() {
+			var a ArgDef
+			err = rows.Scan(&a.ID, &a.Name, &a.Type, &a.Default, &a.AllowNull)
+			if err != nil {
+				return
+			}
+			res = append(res, a)
+		}
+		if rows.Err() != nil {
+			err = rows.Err()
+			return
+		}
+		log.Printf("Func def: %s (%+v)", args[1], res)
+
+		data, err = json.Marshal(res)
+		if err != nil {
+			return
+		}
+
+	} else {
+		q, vals := PrepareFuncSQL(cfg, args)
+		log.Printf("Query: %s (%+v)", q, vals)
+		rows, err = db.Query(q, vals...)
+		if err != nil {
+			return
+		}
+
+		data, err = FetchSQLResult(rows, log)
+		defer rows.Close()
+		if err != nil {
+			return
+		}
+
+	}
+	return
+
 }
 
 // -----------------------------------------------------------------------------
@@ -165,6 +183,11 @@ func FetchSQLResult(rows *pgx.Rows, log *logger.Log) (data []byte, err error) {
 		}
 		tableData = append(tableData, entry)
 
+	}
+	// Any errors encountered by rows.Next or rows.Scan will be returned here
+	if rows.Err() != nil {
+		err = rows.Err()
+		return
 	}
 	data, err = json.Marshal(tableData)
 	return
