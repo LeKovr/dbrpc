@@ -33,7 +33,7 @@ type Flags struct {
 // AplFlags defines applied logic flags
 type AplFlags struct {
 	Prefix     string   `long:"url_prefix" default:"/api/"  description:"Http request prefix"`
-	Schema     string   `long:"db_schema" default:"public" description:"Database functions schema"`
+	Schema     string   `long:"db_schema" default:"public" description:"Database functions schema name or comma delimited list"`
 	ArgDefFunc string   `long:"db_argdef" default:"pg_func_args" description:"Argument definition function"`
 	Hosts      []string `long:"http_origin" description:"Allowed http origin(s)"`
 }
