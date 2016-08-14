@@ -1,4 +1,4 @@
-.config
+.config*
 dist
 dbrpc_*
 test_misc_*.*
