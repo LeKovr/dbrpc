@@ -12,28 +12,28 @@
 
 ## pg_func_args
 
-### Arguments: code=public.dbsize
+### Arguments: nspname=public&proname=dbsize
 
 #### GET
 
 ```
-curl -is http://localhost:8081/api/pg_func_args?code=public.dbsize
+curl -gis http://localhost:8081/api/pg_func_args?nspname=public&proname=dbsize
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 1.04222ms
-Content-Length: 95
+X-Elapsed: 462.021µs
+Content-Length: 93
 
 ```
 ```json
 {
   "result": [
     {
-      "AllowNull": false,
-      "Default": "",
-      "Type": "text",
-      "Name": "name",
-      "ID": 1
+      "type": "text",
+      "name": "name",
+      "id": 1,
+      "def_is_null": false,
+      "def": ""
     }
   ],
   "success": true
@@ -43,22 +43,22 @@ Content-Length: 95
 #### Postgrest
 
 ```
-curl -is -d {"code":"public.dbsize"} -H Content-type: application/json http://localhost:8081/api/pg_func_args
+curl -is -d {"nspname":"public","proname":"dbsize"} -H Content-type: application/json http://localhost:8081/api/pg_func_args
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 545.782µs
-Content-Length: 69
+X-Elapsed: 428.72µs
+Content-Length: 67
 
 ```
 ```json
 [
   {
-    "AllowNull": false,
-    "Default": "",
-    "Type": "text",
-    "Name": "name",
-    "ID": 1
+    "type": "text",
+    "name": "name",
+    "id": 1,
+    "def_is_null": false,
+    "def": ""
   }
 ]
 ```
@@ -66,24 +66,24 @@ Content-Length: 69
 #### JSON-RPC 2.0
 
 ```
-D='{"jsonrpc":"2.0","id":1,"method":"pg_func_args","params":{"code":"public.dbsize"}}'
+D='{"jsonrpc":"2.0","id":1,"method":"pg_func_args","params":{"nspname":"public","proname":"dbsize"}}'
 curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 705.991µs
-Content-Length: 103
+X-Elapsed: 395.839µs
+Content-Length: 101
 
 ```
 ```json
 {
   "result": [
     {
-      "AllowNull": false,
-      "Default": "",
-      "Type": "text",
-      "Name": "name",
-      "ID": 1
+      "type": "text",
+      "name": "name",
+      "id": 1,
+      "def_is_null": false,
+      "def": ""
     }
   ],
   "jsonrpc": "2.0",
@@ -91,16 +91,16 @@ Content-Length: 103
 }
 ```
 
-### Arguments: code=public.pg_func_args
+### Arguments: nspname=public&proname=pg_func_args
 
 #### GET
 
 ```
-curl -is http://localhost:8081/api/pg_func_args?code=public.pg_func_args
+curl -gis http://localhost:8081/api/pg_func_args?nspname=public&proname=pg_func_args
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 561.158µs
+X-Elapsed: 471.319µs
 Content-Length: 169
 
 ```
@@ -108,18 +108,18 @@ Content-Length: 169
 {
   "result": [
     {
-      "AllowNull": false,
-      "Default": null,
-      "Type": "text",
-      "Name": "code",
-      "ID": 1
+      "type": "text",
+      "name": "nspname",
+      "id": 1,
+      "def_is_null": false,
+      "def": null
     },
     {
-      "AllowNull": false,
-      "Default": "a_",
-      "Type": "text",
-      "Name": "prefix",
-      "ID": 2
+      "type": "text",
+      "name": "proname",
+      "id": 2,
+      "def_is_null": false,
+      "def": null
     }
   ],
   "success": true
@@ -129,29 +129,29 @@ Content-Length: 169
 #### Postgrest
 
 ```
-curl -is -d {"code":"public.pg_func_args"} -H Content-type: application/json http://localhost:8081/api/pg_func_args
+curl -is -d {"nspname":"public","proname":"pg_func_args"} -H Content-type: application/json http://localhost:8081/api/pg_func_args
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 535.428µs
+X-Elapsed: 497.276µs
 Content-Length: 143
 
 ```
 ```json
 [
   {
-    "AllowNull": false,
-    "Default": null,
-    "Type": "text",
-    "Name": "code",
-    "ID": 1
+    "type": "text",
+    "name": "nspname",
+    "id": 1,
+    "def_is_null": false,
+    "def": null
   },
   {
-    "AllowNull": false,
-    "Default": "a_",
-    "Type": "text",
-    "Name": "prefix",
-    "ID": 2
+    "type": "text",
+    "name": "proname",
+    "id": 2,
+    "def_is_null": false,
+    "def": null
   }
 ]
 ```
@@ -159,12 +159,12 @@ Content-Length: 143
 #### JSON-RPC 2.0
 
 ```
-D='{"jsonrpc":"2.0","id":1,"method":"pg_func_args","params":{"code":"public.pg_func_args"}}'
+D='{"jsonrpc":"2.0","id":1,"method":"pg_func_args","params":{"nspname":"public","proname":"pg_func_args"}}'
 curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 295.415µs
+X-Elapsed: 554.326µs
 Content-Length: 177
 
 ```
@@ -172,18 +172,18 @@ Content-Length: 177
 {
   "result": [
     {
-      "AllowNull": false,
-      "Default": null,
-      "Type": "text",
-      "Name": "code",
-      "ID": 1
+      "type": "text",
+      "name": "nspname",
+      "id": 1,
+      "def_is_null": false,
+      "def": null
     },
     {
-      "AllowNull": false,
-      "Default": "a_",
-      "Type": "text",
-      "Name": "prefix",
-      "ID": 2
+      "type": "text",
+      "name": "proname",
+      "id": 2,
+      "def_is_null": false,
+      "def": null
     }
   ],
   "jsonrpc": "2.0",
@@ -193,17 +193,17 @@ Content-Length: 177
 
 ## pg_func_result
 
-### Arguments: code=public.pg_func_args
+### Arguments: nspname=public&proname=pg_func_args
 
 #### GET
 
 ```
-curl -is http://localhost:8081/api/pg_func_result?code=public.pg_func_args
+curl -gis http://localhost:8081/api/pg_func_result?nspname=public&proname=pg_func_args
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 240.075µs
-Content-Length: 215
+X-Elapsed: 295.378µs
+Content-Length: 216
 
 ```
 ```json
@@ -231,7 +231,7 @@ Content-Length: 215
     },
     {
       "type": "boolean",
-      "name": "allow_null"
+      "name": "def_is_null"
     }
   ],
   "success": true
@@ -241,12 +241,12 @@ Content-Length: 215
 #### Postgrest
 
 ```
-curl -is -d {"code":"public.pg_func_args"} -H Content-type: application/json http://localhost:8081/api/pg_func_result
+curl -is -d {"nspname":"public","proname":"pg_func_args"} -H Content-type: application/json http://localhost:8081/api/pg_func_result
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 252.72µs
-Content-Length: 189
+X-Elapsed: 290.824µs
+Content-Length: 190
 
 ```
 ```json
@@ -273,7 +273,7 @@ Content-Length: 189
   },
   {
     "type": "boolean",
-    "name": "allow_null"
+    "name": "def_is_null"
   }
 ]
 ```
@@ -281,13 +281,13 @@ Content-Length: 189
 #### JSON-RPC 2.0
 
 ```
-D='{"jsonrpc":"2.0","id":1,"method":"pg_func_result","params":{"code":"public.pg_func_args"}}'
+D='{"jsonrpc":"2.0","id":1,"method":"pg_func_result","params":{"nspname":"public","proname":"pg_func_args"}}'
 curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 227.598µs
-Content-Length: 223
+X-Elapsed: 322.082µs
+Content-Length: 224
 
 ```
 ```json
@@ -315,7 +315,7 @@ Content-Length: 223
     },
     {
       "type": "boolean",
-      "name": "allow_null"
+      "name": "def_is_null"
     }
   ],
   "jsonrpc": "2.0",
@@ -323,16 +323,16 @@ Content-Length: 223
 }
 ```
 
-### Arguments: code=public.dbsize
+### Arguments: nspname=public&proname=dbsize
 
 #### GET
 
 ```
-curl -is http://localhost:8081/api/pg_func_result?code=public.dbsize
+curl -gis http://localhost:8081/api/pg_func_result?nspname=public&proname=dbsize
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 565.746µs
+X-Elapsed: 548.243µs
 Content-Length: 147
 
 ```
@@ -363,11 +363,11 @@ Content-Length: 147
 #### Postgrest
 
 ```
-curl -is -d {"code":"public.dbsize"} -H Content-type: application/json http://localhost:8081/api/pg_func_result
+curl -is -d {"nspname":"public","proname":"dbsize"} -H Content-type: application/json http://localhost:8081/api/pg_func_result
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 192.087µs
+X-Elapsed: 270.481µs
 Content-Length: 121
 
 ```
@@ -395,12 +395,12 @@ Content-Length: 121
 #### JSON-RPC 2.0
 
 ```
-D='{"jsonrpc":"2.0","id":1,"method":"pg_func_result","params":{"code":"public.dbsize"}}'
+D='{"jsonrpc":"2.0","id":1,"method":"pg_func_result","params":{"nspname":"public","proname":"dbsize"}}'
 curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 708.861µs
+X-Elapsed: 293.16µs
 Content-Length: 155
 
 ```
@@ -436,11 +436,11 @@ Content-Length: 155
 #### GET
 
 ```
-curl -is http://localhost:8081/api/dbsize?name=template1
+curl -gis http://localhost:8081/api/dbsize?name=template1
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 503.265µs
+X-Elapsed: 253.23µs
 Content-Length: 84
 
 ```
@@ -464,7 +464,7 @@ curl -is -d {"name":"template1"} -H Content-type: application/json http://localh
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 193.577µs
+X-Elapsed: 262.568µs
 Content-Length: 58
 
 ```
@@ -486,7 +486,7 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 399.691µs
+X-Elapsed: 601.997µs
 Content-Length: 92
 
 ```
@@ -509,11 +509,11 @@ Content-Length: 92
 #### GET
 
 ```
-curl -is http://localhost:8081/api/dbsize?name=template1
+curl -gis http://localhost:8081/api/dbsize?name=template1
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 471.347µs
+X-Elapsed: 446.059µs
 Content-Length: 84
 
 ```
@@ -537,7 +537,7 @@ curl -is -d {"name":"template1"} -H Content-type: application/json http://localh
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 533.098µs
+X-Elapsed: 312.007µs
 Content-Length: 58
 
 ```
@@ -559,7 +559,7 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 319.041µs
+X-Elapsed: 297.964µs
 Content-Length: 92
 
 ```
@@ -584,11 +584,11 @@ Content-Length: 92
 #### GET
 
 ```
-curl -is http://localhost:8081/api/echo?name=test&id=1
+curl -gis http://localhost:8081/api/echo?name=test&id=1
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 283.327µs
+X-Elapsed: 204.396µs
 Content-Length: 50
 
 ```
@@ -611,7 +611,7 @@ curl -is -d {"name":"test","id":"1"} -H Content-type: application/json http://lo
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 222.146µs
+X-Elapsed: 478.119µs
 Content-Length: 24
 
 ```
@@ -632,7 +632,7 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 309.943µs
+X-Elapsed: 621.614µs
 Content-Length: 58
 
 ```
@@ -654,11 +654,11 @@ Content-Length: 58
 #### GET
 
 ```
-curl -is http://localhost:8081/api/echo?name=test
+curl -gis http://localhost:8081/api/echo?name=test
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 269.413µs
+X-Elapsed: 267.219µs
 Content-Length: 50
 
 ```
@@ -681,7 +681,7 @@ curl -is -d {"name":"test"} -H Content-type: application/json http://localhost:8
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 266.975µs
+X-Elapsed: 613.67µs
 Content-Length: 24
 
 ```
@@ -702,7 +702,7 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 346.611µs
+X-Elapsed: 337.037µs
 Content-Length: 58
 
 ```
@@ -726,11 +726,11 @@ Content-Length: 58
 #### GET
 
 ```
-curl -is http://localhost:8081/api/echo_jsonb?name=test
+curl -gis http://localhost:8081/api/echo_jsonb?name=test
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 349.757µs
+X-Elapsed: 397.934µs
 Content-Length: 77
 
 ```
@@ -760,7 +760,7 @@ curl -is -d {"name":"test"} -H Content-type: application/json http://localhost:8
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 206.698µs
+X-Elapsed: 1.244392ms
 Content-Length: 51
 
 ```
@@ -788,7 +788,7 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 814.637µs
+X-Elapsed: 508.233µs
 Content-Length: 85
 
 ```
@@ -819,11 +819,11 @@ Content-Length: 85
 #### GET
 
 ```
-curl -is http://localhost:8081/api/echo_single?name=test
+curl -gis http://localhost:8081/api/echo_single?name=test
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 353.786µs
+X-Elapsed: 290.893µs
 Content-Length: 50
 
 ```
@@ -845,7 +845,7 @@ curl -is -d {"name":"test"} -H Content-type: application/json http://localhost:8
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 367.159µs
+X-Elapsed: 269.007µs
 Content-Length: 24
 
 ```
@@ -865,7 +865,7 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 485.678µs
+X-Elapsed: 486.74µs
 Content-Length: 58
 
 ```
@@ -888,11 +888,11 @@ Content-Length: 58
 #### GET
 
 ```
-curl -is http://localhost:8081/api/echo_arr?name=test1&name=test2
+curl -gis http://localhost:8081/api/echo_arr?name=test1&name=test2
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 448.593µs
+X-Elapsed: 491.109µs
 Content-Length: 61
 
 ```
@@ -918,7 +918,7 @@ curl -is -d {"name":["test1","test2"]} -H Content-type: application/json http://
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 431.2µs
+X-Elapsed: 778.492µs
 Content-Length: 35
 
 ```
@@ -942,7 +942,7 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 281.599µs
+X-Elapsed: 343.429µs
 Content-Length: 69
 
 ```
@@ -967,11 +967,11 @@ Content-Length: 69
 #### GET
 
 ```
-curl -is http://localhost:8081/api/echo_arr?name=test1
+curl -gis http://localhost:8081/api/echo_arr?name=test1
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 259.507µs
+X-Elapsed: 241.498µs
 Content-Length: 53
 
 ```
@@ -996,7 +996,7 @@ curl -is -d {"name":["test1"]} -H Content-type: application/json http://localhos
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 266.253µs
+X-Elapsed: 295.1µs
 Content-Length: 27
 
 ```
@@ -1019,7 +1019,7 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 271.469µs
+X-Elapsed: 251.5µs
 Content-Length: 61
 
 ```
@@ -1045,7 +1045,7 @@ Content-Length: 61
 #### GET
 
 ```
-curl -is http://localhost:8081/api/echo_not_found?name=test
+curl -gis http://localhost:8081/api/echo_not_found?name=test
 
 HTTP/1.1 404 Not Found
 Content-Type: text/plain; charset=utf-8
@@ -1076,14 +1076,14 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 404 Not Found
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 178.601µs
-Content-Length: 152
+X-Elapsed: 319.755µs
+Content-Length: 145
 
 ```
 ```json
 {
   "error": {
-    "data": "ERROR: Function not found: public.echo_not_found (SQLSTATE P0001)",
+    "data": "ERROR: Function not found: echo_not_found (SQLSTATE P0001)",
     "message": "Method not found",
     "code": -32601
   },
@@ -1097,11 +1097,11 @@ Content-Length: 152
 #### GET
 
 ```
-curl -is http://localhost:8081/api/test_error
+curl -gis http://localhost:8081/api/test_error
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 240.005µs
+X-Elapsed: 356.513µs
 Content-Length: 121
 
 ```
@@ -1119,7 +1119,7 @@ curl -is -d {} -H Content-type: application/json http://localhost:8081/api/test_
 
 HTTP/1.1 400 Bad Request
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 286.673µs
+X-Elapsed: 360.485µs
 Content-Length: 137
 
 ```
@@ -1138,7 +1138,7 @@ curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 448.282µs
+X-Elapsed: 852.477µs
 Content-Length: 178
 
 ```

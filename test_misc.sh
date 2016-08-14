@@ -26,25 +26,26 @@ set -eu
 HOST=http://localhost:8081/api
 
 # NOTE: real GET queries comes without '&name=' suffix
+AP=""
 
 Q=$(cat <<EOF
-pg_func_args?code=public.dbsize
-pg_func_args?code=public.pg_func_args
-pg_func_result?code=public.pg_func_args
-pg_func_result?code=public.dbsize
+pg_func_args?${AP}nspname=public&${AP}proname=dbsize
+pg_func_args?${AP}nspname=public&${AP}proname=pg_func_args
+pg_func_result?${AP}nspname=public&${AP}proname=pg_func_args
+pg_func_result?${AP}nspname=public&${AP}proname=dbsize
 
-dbsize?name=template1
-dbsize?name=template1
+dbsize?${AP}name=template1
+dbsize?${AP}name=template1
 
-echo?name=test&id=1
-echo?name=test
-echo_jsonb?name=test
-echo_single?name=test
+echo?${AP}name=test&id=1
+echo?${AP}name=test
+echo_jsonb?${AP}name=test
+echo_single?${AP}name=test
 
-echo_arr?name=test1&name=test2
-echo_arr?name=test1&name=
+echo_arr?${AP}name=test1&${AP}name=test2
+echo_arr?${AP}name=test1&${AP}name=
 
-echo_not_found?name=test
+echo_not_found?${AP}name=test
 test_error
 EOF
 )
@@ -153,7 +154,7 @@ process() {
   local arg2=""
 
   [[ "$pg" ]] && uri="?$pg" && arg2=",\"params\":$pj"
-  call curl -is "$HOST/$method$uri"
+  call curl -gis "$HOST/$method$uri"
 
   pre && cr && echo "#### Postgrest" && cr && pre
   call curl -is -d "$pj" -H "Content-type: application/json" "$HOST/$method"
@@ -183,37 +184,43 @@ fi
 ERR=""
 OUT=""
 if [[ "$TAG" != "-" ]] ; then
-  ERR="${TAG}_$$.err"
+  ERR="${TAG}_$$.diff"
   [ -f $ERR ] && rm $ERR
-  OUT="${TAG}_$$.out"
+  OUT="${TAG}_$$.md"
 fi
 
 if [[ "$OUT" ]] ; then
   echo "# crebas_misc.sql testing results" > $OUT
   cr >> $OUT
   echo "Fetching data from server..."
+
+  method_pre=""
+  #  for q in $Q ; do
+  while IFS= read -r line ; do
+    # Skip comments
+    q=${line%%#*} # remove endline comments
+    [ -n "${q##+([[:space:]])}" ] || continue # ignore line if contains only spaces
+
+    toc $q >> $OUT
+  done <<< "$Q"
+  cr && cr >> $OUT
+
 fi
 
 method_pre=""
-for q in $Q ; do
-  [[ "$q" ]] || continue
-  if [[ "$OUT" ]] ; then
-    toc $q >> $OUT
-  fi
-done
+while IFS= read -r line ; do
 
-[[ "$OUT" ]] && cr && cr >> $OUT
+  # Skip comments
+  q=${line%%#*} # remove endline comments
+  [ -n "${q##+([[:space:]])}" ] || continue # ignore line if contains only spaces
 
-method_pre=""
-for q in $Q ; do
-  [[ "$q" ]] || continue
   if [[ "$OUT" ]] ; then
     echo $q
     process $q >> $OUT
   else
     process $q
   fi
-done
+done <<< "$Q"
 echo "------------------"
 cr
 [[ "$OUT" ]] || { echo "no compare" ;  exit ; }
