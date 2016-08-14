@@ -1,7 +1,5 @@
 
-# Проект IAC. Методы API
-
-**Внимание:** это предварительная версия программно сгенеренного документа
+# Схема public. Методы API
 
 * [dbsize](#dbsize)
 * [echo](#echo)
@@ -24,151 +22,151 @@
 
 ## dbsize
 
-null
+
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-name | text | | null
+name | text | | 
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-name | name | null
-owner | name | null
-size | text | null
+name | name | 
+owner | name | 
+size | text | 
 
 ## echo
 
-null
+
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-name | text | null | null
-id | integer | 5 | null
+name | text |  | 
+id | integer | 5 | 
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-name | text | null
-id | integer | null
+name | text | 
+id | integer | 
 
 ## echo_arr
 
-null
+
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-name | text[] | null | null
-id | integer | 5 | null
+name | text[] |  | 
+id | integer | 5 | 
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-name | text[] | null
-id | integer | null
+name | text[] | 
+id | integer | 
 
 ## echo_jsonb
 
-null
+
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-name | text | null | null
-id | integer | 5 | null
+name | text |  | 
+id | integer | 5 | 
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-name | text | null
-id | integer | null
-js | jsonb | null
+name | text | 
+id | integer | 
+js | jsonb | 
 
 ## echo_single
 
-null
+
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-name | text | null | null
+name | text |  | 
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-- | text | null
+- | text | 
 
 ## fsm_path_ok
 
-null
+
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-path | text | null | null
+path | text |  | 
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-- | boolean | null
+- | boolean | 
 
 ## fsm_transes_ok
 
-null
+
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-transes | text | null | null
-final_trans_id | integer | null | null
-start_trans_id | integer | 1 | null
+transes | text |  | 
+final_trans_id | integer |  | 
+start_trans_id | integer | 1 | 
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-- | boolean | null
+- | boolean | 
 
 ## index
 
-null
+
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-nspname | text | null | null
-lang | text | ru | null
+nspname | text |  | 
+lang | text | ru | 
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-code | text | null
-nspname | text | null
-proname | text | null
-anno | text | null
-sample | text | null
+code | text | 
+nspname | text | 
+proname | text | 
+anno | text | 
+sample | text | 
 
 ## pg_func_arg_prefix
 
-null
+
 
 ### Аргументы
 
@@ -179,161 +177,161 @@ null
 
 Имя | Тип | Описание
 ----|-----|---------
-- | text | null
+- | text | 
 
 ## pg_func_args
 
-null
+
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-nspname | text | null | null
-proname | text | null | null
+nspname | text |  | 
+proname | text |  | 
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-id | integer | null
-name | text | null
-type | text | null
-def | text | null
-def_is_null | boolean | null
+id | integer | 
+name | text | 
+type | text | 
+def | text | 
+def_is_ | boolean | 
 
 ## pg_func_args_ext
 
-null
+
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-code | text | null | null
-lang | text | ru | null
+code | text |  | 
+lang | text | ru | 
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-name | text | null
-type | text | null
-def | text | null
-def_is_null | boolean | null
-anno | text | null
+name | text | 
+type | text | 
+def | text | 
+def_is_ | boolean | 
+anno | text | 
 
 ## pg_func_result
 
-null
+
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-nspname | text | null | null
-proname | text | null | null
+nspname | text |  | 
+proname | text |  | 
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-name | text | null
-type | text | null
+name | text | 
+type | text | 
 
 ## pg_func_result_ext
 
-null
+
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-code | text | null | null
-lang | text | ru | null
+code | text |  | 
+lang | text | ru | 
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-name | text | null
-type | text | null
-anno | text | null
+name | text | 
+type | text | 
+anno | text | 
 
 ## pg_func_search_nsp
 
-null
+
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-code | text | null | null
+code | text |  | 
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-- | text | null
+- | text | 
 
 ## pg_schema_oid
 
-null
+
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-name | text | null | null
+name | text |  | 
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-- | oid | null
+- | oid | 
 
 ## register_comment
 
-null
+
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-lang | text | null | null
-nspname | text | null | null
-proname | text | null | null
-anno | text | null | null
-args | json | null | null
-result | json | null | null
-sample | text | null | null
+lang | text |  | 
+nspname | text |  | 
+proname | text |  | 
+anno | text |  | 
+args | json |  | 
+result | json |  | 
+sample | text |  | 
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-- | void | null
+- | void | 
 
 ## register_comment_common
 
-null
+
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-lang | text | null | null
-args | json | null | null
+lang | text |  | 
+args | json |  | 
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-- | void | null
+- | void | 
 
 ## test_error
 
-null
+
 
 ### Аргументы
 
@@ -344,4 +342,4 @@ null
 
 Имя | Тип | Описание
 ----|-----|---------
-- | text | null
+- | text | 
