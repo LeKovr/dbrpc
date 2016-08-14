@@ -13,6 +13,8 @@ import (
 	"github.com/LeKovr/go-base/logger"
 )
 
+type tableRow map[string]interface{}
+
 // -----------------------------------------------------------------------------
 
 // Processor gets value from cache and converts it into Result struct
@@ -67,8 +69,10 @@ func dbFetcher(cfg *AplFlags, log *logger.Log, db *pgx.Conn) groupcache.GetterFu
 	}
 }
 
+// -----------------------------------------------------------------------------
+
 func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.Conn, key string) (data []byte, err error) {
-	var args []string
+	var args []interface{}
 	var rows *pgx.Rows
 
 	err = json.Unmarshal([]byte(key), &args)
@@ -76,60 +80,26 @@ func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.Conn, key string) (data []b
 		return
 	}
 
-	if args[0] == cfg.ArgDefFunc {
+	q, vals := PrepareFuncSQL(cfg, args)
+	log.Debugf("Query: %s", q)
+	rows, err = db.Query(q, vals...)
+	if err != nil {
+		return
+	}
 
-		q := fmt.Sprintf("select * from %s.%s($1)", cfg.Schema, args[0])
-
-		rows, err = db.Query(q, args[1])
-		defer rows.Close()
-		if err != nil {
-			return
-		}
-
-		var res []ArgDef
-		for rows.Next() {
-			var a ArgDef
-			err = rows.Scan(&a.ID, &a.Name, &a.Type, &a.Default, &a.AllowNull)
-			if err != nil {
-				return
-			}
-			res = append(res, a)
-		}
-		if rows.Err() != nil {
-			err = rows.Err()
-			return
-		}
-		log.Debugf("Func def: %s (%+v)", args[1], res)
-
-		data, err = json.Marshal(res)
-		if err != nil {
-			return
-		}
-
-	} else {
-		q, vals := PrepareFuncSQL(cfg, args)
-		log.Debugf("Query: %s (%+v)", q, vals)
-		rows, err = db.Query(q, vals...)
-		if err != nil {
-			return
-		}
-
-		data, err = FetchSQLResult(rows, log)
-		defer rows.Close()
-		if err != nil {
-			return
-		}
-
+	data, err = FetchSQLResult(rows, log)
+	defer rows.Close()
+	if err != nil {
+		return
 	}
 	return
-
 }
 
 // -----------------------------------------------------------------------------
 
 // PrepareFuncSQL prepares sql query with args placeholders
-func PrepareFuncSQL(cfg *AplFlags, args []string) (string, []interface{}) {
-	mtd := args[0]
+func PrepareFuncSQL(cfg *AplFlags, args []interface{}) (string, []interface{}) {
+	mtd := args[0].(string)
 	argVals := args[1:]
 
 	argValPrep := make([]interface{}, len(argVals))
@@ -142,7 +112,7 @@ func PrepareFuncSQL(cfg *AplFlags, args []string) (string, []interface{}) {
 
 	argIDStr := strings.Join(argIDs, ",")
 
-	q := fmt.Sprintf("select * from %s.%s(%s)", cfg.Schema, mtd, argIDStr)
+	q := fmt.Sprintf("select * from %s(%s)", mtd, argIDStr)
 
 	return q, argValPrep
 }
@@ -161,7 +131,7 @@ func FetchSQLResult(rows *pgx.Rows, log *logger.Log) (data []byte, err error) {
 		types = append(types, c.DataTypeName)
 	}
 
-	var tableData []map[string]interface{}
+	var tableData []tableRow
 	for rows.Next() {
 		var values []interface{}
 		values, err = rows.Values()
@@ -191,6 +161,10 @@ func FetchSQLResult(rows *pgx.Rows, log *logger.Log) (data []byte, err error) {
 	if rows.Err() != nil {
 		err = rows.Err()
 		return
+	}
+	if tableData == nil {
+		log.Warn("Empty result")
+		tableData = []tableRow{} // empty result is empty array
 	}
 	data, err = json.Marshal(tableData)
 	return
