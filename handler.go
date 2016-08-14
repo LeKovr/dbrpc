@@ -364,12 +364,9 @@ func postgrestContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job
 	//w.Write([]byte("\n"))
 }
 
-//func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams, method string) ([]*string, []string) {
 func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams, method string) ([]interface{}, []string) {
 
-	//	key := []*string{&method}
 	key := []interface{}{}
-
 	key = append(key, &method)
 	f404 := []string{}
 
