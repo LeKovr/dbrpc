@@ -53,10 +53,13 @@ Features
 * [x] required args checking
 * [ ] RPC interface
 * [ ] Cache control
+* [ ] Cache warm/bench/test with wget
+* [ ] Reset metadata cache on SIGHUP
 * [ ] Authentication
 * [ ] Access control
 * [ ] Metrics for [Prometheus](https://prometheus.io/)
 * [ ] Integrated templates
+* [ ] Swagger & human autodoc
 * [ ] i18n
 
 ### ToDo
