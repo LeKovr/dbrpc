@@ -14,7 +14,7 @@ CREATE TABLE func_def(
 );
 COMMENT ON TABLE func_def IS 'Function attributes';
 
-/* ------------------------------------------------------------------------- */
+-- -----------------------------------------------------------------------------
 
 CREATE TABLE func_arg_def(
   code  TEXT REFERENCES func_def ON DELETE CASCADE
@@ -26,7 +26,7 @@ CREATE TABLE func_arg_def(
 );
 COMMENT ON TABLE func_arg_def IS 'Function in/out argument attributes';
 
-/* ------------------------------------------------------------------------- */
+-- -----------------------------------------------------------------------------
 
 CREATE TABLE func_arg_def_common(
   lang  TEXT NOT NULL DEFAULT 'ru'
@@ -104,9 +104,9 @@ $_$
    FROM pg_func_args(null,$1) f
    LEFT OUTER JOIN func_arg_def d ON (f.name = d.arg)
   WHERE f.name IS NOT NULL
-    AND d.code = $1
-    AND d.lang = $2
-    AND is_in
+    AND COALESCE (d.code, $1) = $1
+    AND COALESCE (d.lang, $2) = $2
+    AND COALESCE (is_in, TRUE)
 $_$;
 
 /* ------------------------------------------------------------------------- */
@@ -117,8 +117,8 @@ $_$
    FROM pg_func_result(null,$1) f
    LEFT OUTER JOIN func_arg_def d ON (f.name = d.arg)
   WHERE f.name IS NOT NULL
-    AND d.code = $1
-    AND d.lang = $2
-    AND NOT is_in
+    AND COALESCE (d.code, $1) = $1
+    AND COALESCE (d.lang, $2) = $2
+    AND NOT COALESCE (is_in, FALSE)
 $_$;
 
