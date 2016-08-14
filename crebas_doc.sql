@@ -6,52 +6,60 @@
 /* ------------------------------------------------------------------------- */
 
 CREATE TABLE func_def(
-  schema NAME
-, code NAME
-, lang TEXT NOT NULL DEFAULT 'ru'
-, anno TEXT
-, test TEXT
-, CONSTRAINT func_def_pk PRIMARY KEY (schema, code, lang)
+  code    TEXT PRIMARY KEY
+, nspname NAME NOT NULL
+, proname NAME NOT NULL
+, anno    TEXT
+, sample  TEXT
 );
 COMMENT ON TABLE func_def IS 'Function attributes';
 
 /* ------------------------------------------------------------------------- */
 
-CREATE TABLE func_field_def(
-  schema NAME
-, code NAME
-, is_in BOOL NOT NULL
-, lang TEXT NOT NULL DEFAULT 'ru'
-, sub_code TEXT
-, anno TEXT
-, CONSTRAINT func_field_def_pk PRIMARY KEY (schema, code, is_in, lang, sub_code)
-, CONSTRAINT func_field_def_fk FOREIGN KEY (schema, code, lang) REFERENCES func_def ON DELETE CASCADE 
+CREATE TABLE func_arg_def(
+  code  TEXT REFERENCES func_def ON DELETE CASCADE
+, is_in BOOL
+, lang  TEXT DEFAULT 'ru'
+, arg   TEXT
+, anno  TEXT
+, CONSTRAINT func_arg_def_pk PRIMARY KEY (code, is_in, lang, arg)
 );
-COMMENT ON TABLE func_field_def IS 'Function in/out fields attributes';
+COMMENT ON TABLE func_arg_def IS 'Function in/out argument attributes';
+
+/* ------------------------------------------------------------------------- */
+
+CREATE TABLE func_arg_def_common(
+  lang  TEXT NOT NULL DEFAULT 'ru'
+, arg   TEXT
+, anno  TEXT
+, CONSTRAINT func_arg_def_common_pk PRIMARY KEY (lang, arg)
+);
+COMMENT ON TABLE func_arg_def_common IS 'Common function in/out argument attributes';
 
 /* ------------------------------------------------------------------------- */
 
 CREATE OR REPLACE FUNCTION register_comment(
-  a_lang TEXT
-, a_schema TEXT
-, a_code TEXT
-, a_anno TEXT
-, a_args JSON
-, a_result JSON
-, a_test TEXT
+  a_lang    TEXT
+, a_nspname TEXT
+, a_proname TEXT
+, a_anno    TEXT
+, a_args    JSON
+, a_result  JSON
+, a_sample    TEXT
 ) RETURNS void VOLATILE LANGUAGE 'plpgsql' AS
 $_$
 BEGIN
-  DELETE FROM func_def WHERE schema = a_schema AND code = a_code;
-  INSERT INTO func_def (schema, code, lang, anno, test)
-    VALUES (a_schema, a_code, a_lang, a_anno, a_test)
+  -- code DEFAULTs to proname
+  DELETE FROM func_def WHERE nspname = a_nspname AND proname = a_proname;
+  INSERT INTO func_def (code, nspname, proname, anno, sample)
+    VALUES (a_proname, a_nspname, a_proname, a_anno, a_sample)
   ;
-  INSERT INTO func_field_def (schema, code, is_in, lang, sub_code, anno)
-    SELECT a_schema, a_code, true, a_lang, key, value
+  INSERT INTO func_arg_def (code, is_in, lang, arg, anno)
+    SELECT a_proname, true, a_lang, key, value
       FROM json_each_text(a_args) 
   ;
-  INSERT INTO func_field_def (schema, code, is_in, lang, sub_code, anno)
-    SELECT a_schema, a_code, false, a_lang, key, value
+  INSERT INTO func_arg_def (code, is_in, lang, arg, anno)
+    SELECT a_proname, false, a_lang, key, value
       FROM json_each_text(a_result)
   ;
 END;
@@ -59,26 +67,44 @@ $_$;
 
 /* ------------------------------------------------------------------------- */
 
-CREATE OR REPLACE FUNCTION index(a_schema TEXT, a_lang TEXT DEFAULT 'ru') RETURNS TABLE(name TEXT, anno TEXT, example TEXT) STABLE LANGUAGE 'sql' AS
+CREATE OR REPLACE FUNCTION register_comment_common(
+  a_lang    TEXT
+, a_args    JSON
+) RETURNS void VOLATILE LANGUAGE 'plpgsql' AS
 $_$
-  SELECT p.proname::TEXT, d.anno::TEXT, d.test
+BEGIN
+  INSERT INTO func_arg_def_common (lang, arg, anno)
+    SELECT a_lang, key, value
+      FROM json_each_text(a_args)
+  ;
+END;
+$_$;
+
+/* ------------------------------------------------------------------------- */
+
+CREATE OR REPLACE FUNCTION index(a_nspname TEXT DEFAULT NULL, a_lang TEXT DEFAULT 'ru') RETURNS TABLE(code TEXT, nspname TEXT, proname TEXT, anno TEXT, sample TEXT) STABLE LANGUAGE 'sql' AS
+$_$
+  SELECT COALESCE(d.code, p.proname)::TEXT AS code
+  , n.nspname::TEXT
+  , p.proname::TEXT
+  , d.anno::TEXT
+  , d.sample
     FROM pg_catalog.pg_proc p
     JOIN pg_namespace n ON (n.oid = p.pronamespace)
-    LEFT OUTER JOIN func_def d ON ( d.schema = n.nspname AND d.code = p.proname AND d.lang = $2)
-   WHERE n.nspname = $1
+    LEFT OUTER JOIN func_def d ON ( d.nspname = n.nspname AND d.proname = p.proname)
+   WHERE n.nspname = COALESCE($1, current_schema)
    ORDER BY 1
 $_$;
 
 /* ------------------------------------------------------------------------- */
 
-CREATE OR REPLACE FUNCTION pg_func_args_ext(a_code TEXT, a_lang TEXT default 'ru') RETURNS TABLE(name TEXT, type TEXT, anno TEXT) STABLE LANGUAGE 'sql' AS
+CREATE OR REPLACE FUNCTION pg_func_args_ext(a_code TEXT, a_lang TEXT default 'ru') RETURNS TABLE(name TEXT, type TEXT, def TEXT, def_is_null BOOL, anno TEXT) STABLE LANGUAGE 'sql' AS
 $_$
-  SELECT name, type, d.anno 
-   FROM pg_func_args($1) f
-   LEFT OUTER JOIN func_field_def d ON (f.name = d.sub_code)
+  SELECT name, type, def, def_is_null, d.anno 
+   FROM pg_func_args(null,$1) f
+   LEFT OUTER JOIN func_arg_def d ON (f.name = d.arg)
   WHERE f.name IS NOT NULL
-    AND d.schema = split_part($1, '.', 1)
-    AND d.code = split_part($1, '.', 2)
+    AND d.code = $1
     AND d.lang = $2
     AND is_in
 $_$;
@@ -88,11 +114,10 @@ $_$;
 CREATE OR REPLACE FUNCTION pg_func_result_ext(a_code TEXT, a_lang TEXT default 'ru') RETURNS TABLE(name TEXT, type TEXT, anno TEXT) STABLE LANGUAGE 'sql' AS
 $_$
   SELECT name, type, d.anno 
-   FROM pg_func_result($1) f
-   LEFT OUTER JOIN func_field_def d ON (f.name = d.sub_code)
+   FROM pg_func_result(null,$1) f
+   LEFT OUTER JOIN func_arg_def d ON (f.name = d.arg)
   WHERE f.name IS NOT NULL
-    AND d.schema = split_part($1, '.', 1)
-    AND d.code = split_part($1, '.', 2)
+    AND d.code = $1
     AND d.lang = $2
     AND NOT is_in
 $_$;
