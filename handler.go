@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,8 +22,8 @@ type ArgDef struct {
 	ID        int32
 	Name      string
 	Type      string
-	Default   *string
-	AllowNull bool
+	Default   *string `json:"def"`
+	DefIsNull bool    `json:"def_is_null"`
 }
 
 // FuncArgDef holds set of function argument attributes
@@ -60,7 +62,7 @@ type respPGTError struct {
 // FunctionDef creates a job for fetching of function argument definition
 func FunctionDef(cfg *AplFlags, log *logger.Log, jc chan workman.Job, method string) (FuncArgDef, interface{}) {
 
-	key := []string{cfg.ArgDefFunc, cfg.Schema + "." + method}
+	key := []*string{&cfg.ArgDefFunc, nil, &method}
 
 	payload, _ := json.Marshal(key)
 	respChannel := make(chan workman.Result)
@@ -163,7 +165,7 @@ func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w ht
 		v := r.Form[a.Name]
 
 		if len(v) == 0 {
-			if !a.AllowNull && a.Default == nil {
+			if !a.DefIsNull && a.Default == nil {
 				f404 = append(f404, a.Name)
 			} else if a.Default != nil {
 				log.Debugf("Arg: %s use default", a.Name)
@@ -173,8 +175,13 @@ func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w ht
 		} else if strings.HasSuffix(a.Type, "[]") {
 			// convert array into string
 			// TODO: escape ","
-			s := "{" + strings.Join(v, ",") + "}"
-			key = append(key, &s)
+			if v[0] == "{}" {
+				// empty array
+				key = append(key, &v[0])
+			} else {
+				s := "{" + strings.Join(v, ",") + "}"
+				key = append(key, &s)
+			}
 		} else {
 			key = append(key, &v[0])
 		}
@@ -262,7 +269,8 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 	} else {
 		// Load args
 		r.ParseForm()
-		key, f404 := fetchArgs(argDef, req.Params, req.Method)
+		log.Infof("Argument source: %+v", req.Params)
+		key, f404 := fetchArgs(log, argDef, req.Params, req.Method)
 		if len(f404) > 0 {
 			resultRPC.Error = getRaw(respRPCError{Code: -32602, Message: "Required parameter(s) not found", Data: getRaw(f404)})
 		} else {
@@ -324,7 +332,8 @@ func postgrestContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job
 		resultStatus = http.StatusBadRequest
 	} else {
 		// Load args
-		key, f404 := fetchArgs(argDef, req, method)
+		log.Infof("Argument source: %+v", req)
+		key, f404 := fetchArgs(log, argDef, req, method)
 		if len(f404) > 0 {
 			resultRPC = respPGTError{Code: "42883", Message: "Required parameter(s) not found", Details: getRaw(strings.Join(f404, ", "))}
 			resultStatus = http.StatusBadRequest
@@ -355,18 +364,22 @@ func postgrestContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job
 	//w.Write([]byte("\n"))
 }
 
-func fetchArgs(argDef FuncArgDef, req reqParams, method string) ([]*string, []string) {
+//func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams, method string) ([]*string, []string) {
+func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams, method string) ([]interface{}, []string) {
 
-	key := []*string{&method}
+	//	key := []*string{&method}
+	key := []interface{}{}
+
+	key = append(key, &method)
 	f404 := []string{}
 
 	for _, a := range argDef {
 		v, ok := req[a.Name]
 		if !ok {
-			if !a.AllowNull && a.Default == nil {
+			if !a.DefIsNull && a.Default == nil {
 				f404 = append(f404, a.Name)
 			} else if a.Default != nil {
-				//log.Debugf("Arg: %s use default", a.Name)
+				log.Debugf("Arg: %s use default", a.Name)
 				break // use defaults
 			}
 			key = append(key, nil) // TODO: nil does not replaced with default
@@ -396,12 +409,62 @@ func fetchArgs(argDef FuncArgDef, req reqParams, method string) ([]*string, []st
 				ss := "{" + strings.Join(ret, ",") + "}"
 				key = append(key, &ss)
 			}
-		} else {
-			s := v.(string)
+		} else if a.Type == "integer" { // may be 2.001380402e+09
+			log.Debugf("Arg (int): %+v", v)
+			//	i, err := strconv.ParseInt(v.(string), 10, 64)
+			var s string
+			f, err := getFloat(v)
+			if err != nil {
+				// log.Debugf("Cannot convert to int %+v: %+v", v, err)
+				s = fmt.Sprintf("%s", v.(string)) //
+			} else {
+				s = fmt.Sprintf("%.0f", f) //v.(string)
+			}
 			key = append(key, &s)
+		} else {
+			key = append(key, &v)
 		}
-
+		/*
+				} else if a.Type == "boolean" {
+				b, _ := getBool(v)
+				s := strconv.FormatBool(b) //v.(string)
+				key = append(key, &s)
+			} else {
+				log.Debugf("Arg (%s): %+v", a.Type, v)
+				s := fmt.Sprintf("%s", v) //v.(string)
+				key = append(key, &s)
+			}
+		*/
 		//log.Debugf("Arg: %+v (%d)", v, len(f404))
 	}
 	return key, f404
+}
+
+func getFloat(unk interface{}) (float64, error) {
+	switch i := unk.(type) {
+	case float64:
+		return i, nil
+	case float32:
+		return float64(i), nil
+	case int64:
+		return float64(i), nil
+	// ...other cases...
+	default:
+		return math.NaN(), fmt.Errorf("getFloat: unknown value is of incompatible type %+v", i)
+	}
+}
+
+func getBool(unk interface{}) (bool, error) {
+	switch unk.(type) {
+	case bool:
+		if unk.(bool) {
+			return true, nil
+		}
+		return false, nil
+
+	// ...other cases...
+	default:
+		b, err := strconv.ParseBool(unk.(string))
+		return b, err //fmt.Errorf("getFloat: unknown value is of incompatible type %+v", i)
+	}
 }
