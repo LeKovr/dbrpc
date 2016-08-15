@@ -108,6 +108,23 @@ func httpHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job) http.Handl
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		log.Debugf("Request method: %s", r.Method)
+
+		if origin := r.Header.Get("Origin"); origin != "" {
+
+			log.Debugf("Lookup origin %s in %+v", origin, cfg.Hosts)
+			if !originAllowed(cfg.Hosts, origin) {
+				log.Warningf("Unregistered request source: %s", origin)
+				http.Error(w, "Origin not registered", http.StatusForbidden)
+				return
+			}
+			w.Header().Add("Access-Control-Allow-Origin", origin)
+			w.Header().Add("Access-Control-Allow-Credentials", "true") // TODO
+			w.Header().Add("Access-Control-Allow-Headers",
+				"origin, content-type, accept, keep-alive, user-agent, x-requested-with, x-token")
+			w.Header().Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+
+		}
+
 		if r.Method == "GET" {
 			getContextHandler(cfg, log, jc, w, r, true)
 		} else if r.Method == "HEAD" {
@@ -117,7 +134,8 @@ func httpHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job) http.Handl
 		} else if r.Method == "POST" {
 			postgrestContextHandler(cfg, log, jc, w, r)
 		} else if r.Method == "OPTIONS" {
-			optionsContextHandler(cfg, log, jc, w, r)
+			w.Header().Add("Content-Type", "text/plain; charset=UTF-8")
+			w.WriteHeader(http.StatusNoContent)
 		} else {
 			e := fmt.Sprintf("Unsupported request method: %s", r.Method)
 			log.Warn(e)
@@ -140,6 +158,19 @@ func getRaw(data interface{}) *json.RawMessage {
 	j, _ := json.Marshal(data)
 	raw := json.RawMessage(j)
 	return &raw
+}
+
+// -----------------------------------------------------------------------------
+
+func originAllowed(origins []string, origin string) bool {
+	if len(origins) > 0 { // lookup if host is allowed
+		for _, h := range origins {
+			if h == "*" || origin == h {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // -----------------------------------------------------------------------------
@@ -211,34 +242,6 @@ func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w ht
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
-}
-
-// -----------------------------------------------------------------------------
-
-func optionsContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w http.ResponseWriter, r *http.Request) {
-
-	origin := r.Header.Get("Origin")
-	var host string
-	if origin != "" && len(cfg.Hosts) > 0 { // lookup if host is allowed
-		for _, h := range cfg.Hosts {
-			if origin == h {
-				host = h
-				break
-			}
-		}
-	} else {
-		host = origin
-	}
-	if origin != "" && host == "" {
-		log.Warningf("Unregistered request source: %s", origin)
-		http.Error(w, "Origin not registered", http.StatusForbidden)
-		return
-	}
-	w.Header().Set("Access-Control-Allow-Origin", host)
-	w.Header().Set("Access-Control-Allow-Headers", "origin, content-type, accept")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.WriteHeader(http.StatusOK)
-	return
 }
 
 // -----------------------------------------------------------------------------
