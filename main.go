@@ -77,7 +77,7 @@ func main() {
 // -----------------------------------------------------------------------------
 
 // Handlers used to prepare and http handlers
-func Handlers(cfg *Config, log *logger.Log, db *pgx.Conn) (*mux.Router, *workman.WorkMan) {
+func Handlers(cfg *Config, log *logger.Log, db *pgx.ConnPool) (*mux.Router, *workman.WorkMan) {
 
 	cache := groupcache.NewGroup(
 		cfg.CacheGroup,
@@ -117,7 +117,7 @@ func makeConfig(cfg *Config) *flags.Parser {
 	return p
 }
 
-func setUp(cfg *Config) (log *logger.Log, db *pgx.Conn, err error) {
+func setUp(cfg *Config) (log *logger.Log, db *pgx.ConnPool, err error) {
 
 	p := makeConfig(cfg)
 
@@ -141,13 +141,19 @@ func setUp(cfg *Config) (log *logger.Log, db *pgx.Conn, err error) {
 	// Setup database
 	c, err := pgx.ParseURI("postgres://" + cfg.Connect)
 	panicIfError(err) // check Flags parse error
-	db, err = pgx.Connect(c)
+	db, err = pgx.NewConnPool(pgx.ConnPoolConfig{
+		ConnConfig:     c,
+		MaxConnections: cfg.wm.MaxWorkers,
+		AfterConnect: func(conn *pgx.Conn) error {
+			if cfg.apl.Schema != "public" {
+				_, err = conn.Exec("set search_path = " + cfg.apl.Schema)
+			}
+			log.Debugf("Added DB connection")
+			return err
+		},
+	})
 	panicIfError(err) // check Flags parse error
 
-	if cfg.apl.Schema != "public" {
-		_, err = db.Exec("set search_path = " + cfg.apl.Schema)
-		panicIfError(err)
-	}
 	return
 }
 

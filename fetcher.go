@@ -46,7 +46,7 @@ func cacheFetcher(log *logger.Log, cacheGroup *groupcache.Group) workman.WorkerF
 
 // -----------------------------------------------------------------------------
 
-func dbFetcher(cfg *AplFlags, log *logger.Log, db *pgx.Conn) groupcache.GetterFunc {
+func dbFetcher(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool) groupcache.GetterFunc {
 	return func(ctx groupcache.Context, key string, dest groupcache.Sink) error {
 		log.Printf("asking for %s from dbserver", key)
 
@@ -71,7 +71,7 @@ func dbFetcher(cfg *AplFlags, log *logger.Log, db *pgx.Conn) groupcache.GetterFu
 
 // -----------------------------------------------------------------------------
 
-func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.Conn, key string) (data []byte, err error) {
+func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool, key string) (data []byte, err error) {
 	var args []interface{}
 	var rows *pgx.Rows
 
