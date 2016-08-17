@@ -65,7 +65,7 @@ export CONFIG_DEF
 ## init config
 config: $(CFG)
 
-## build and run
+## build and run daemon
 up: build $(PIDFILE)
 
 $(PIDFILE): $(CFG)
@@ -73,18 +73,21 @@ $(PIDFILE): $(CFG)
   DBC="$$DB_USER:$$DB_PASS@$$DB_ADDR/$$DB_NAME?sslmode=disable" ; \
   nohup ./$(PRGPATH) --log_level debug --db_connect "$$DBC" --http_addr "$$APP_ADDR" --db_schema "$$DB_SCHEMA" >$(LOGFILE) 2>&1 &
 
+## run in foreground
 run: build $(CFG)
 	@source $(CFG) && \
   DBC="$$DB_USER:$$DB_PASS@$$DB_ADDR/$$DB_NAME?sslmode=disable" ; \
   ./$(PRGPATH) --log_level debug --db_connect "$$DBC" --http_addr "$$APP_ADDR" --db_schema "$$DB_SCHEMA"
 
+## gracefull code reload
 reload: build $(PIDFILE)
 	@kill -1 $$(cat $(PIDFILE))
 
+## stop daemon
 down:
 	@[ -f $(PIDFILE) ] && kill -SIGTERM $$(cat $(PIDFILE)) && rm $(PIDFILE)
 
-## build and show help
+## build and show program help
 help: build
 	./$(PRGPATH) --help
 
@@ -114,9 +117,19 @@ for a in "$(ALLARCH)" ; do \
   "-X main.Build=$(STAMP) -X main.Commit=$$GH" ; \
 done
 
-# create database
-db:
-	PGPASSWORD=op psql -h localhost -U op -f crebas.sql op
+## create database schema dbrpc with used objects
+db: $(CFG)
+	@source $(CFG) && \
+  DBC="$$DB_USER:$$DB_PASS@$$DB_ADDR/$$DB_NAME?sslmode=disable" ; \
+  cmd() { echo 'BEGIN; \\ \set ON_ERROR_STOP 1' && \
+  for f in sql/??_*.sql; do echo '\i '$$f; done && \
+  echo 'COMMIT;' ; } && cmd | psql -d postgres://$$DBC 
+
+## drop database schema dbrpc
+clean-db: $(CFG)
+	@source $(CFG) && \
+  DBC="$$DB_USER:$$DB_PASS@$$DB_ADDR/$$DB_NAME?sslmode=disable" ; \
+  echo "DROP SCHEMA IF EXISTS dbrpc CASCADE;" | psql -d postgres://$$DBC 
 
 ## create disro files
 dist: clean buildall
@@ -150,6 +163,7 @@ vet:
 	@echo "*** $@ ***"
 	@for d in "$(SOURCEDIR)" ; do echo $$d && go vet $$d/*.go ; done
 
+## run psql
 psql: $(CFG)
 	@source $(CFG) && \
   DBC="$$DB_USER:$$DB_PASS@$$DB_ADDR/$$DB_NAME?sslmode=disable" ; \
