@@ -32,10 +32,12 @@ type Flags struct {
 
 // AplFlags defines applied logic flags
 type AplFlags struct {
-	Prefix     string   `long:"url_prefix" default:"/api/"  description:"Http request prefix"`
-	Schema     string   `long:"db_schema" default:"public" description:"Database functions schema name or comma delimited list"`
-	ArgDefFunc string   `long:"db_argdef" default:"pg_func_args" description:"Argument definition function"`
-	Hosts      []string `long:"http_origin" description:"Allowed http origin(s)"`
+	Prefix       string   `long:"url_prefix" default:"/rpc/"  description:"Http request prefix"`
+	Schema       string   `long:"db_schema" default:"public" description:"Database functions schema name or comma delimited list"`
+	ArgDefFunc   string   `long:"db_argdef" default:"pg_func_args" description:"Argument definition function"`
+	ArgIndexFunc string   `long:"db_index" default:"index" description:"Available functions list"`
+	Hosts        []string `long:"http_origin" description:"Allowed http origin(s)"`
+	Lang         string   `long:"lang" default:"ru" description:"Default definition language"`
 }
 
 // Config defines all of application flags
@@ -93,8 +95,17 @@ func Handlers(cfg *Config, log *logger.Log, db *pgx.ConnPool) (*mux.Router, *wor
 	)
 	panicIfError(err)
 
+	fm, err := indexFetcher(&cfg.apl, log, db)
+
+	srv := RPCServer{
+		cfg:   &cfg.apl,
+		log:   log,
+		jc:    wm.JobQueue,
+		funcs: fm,
+	}
+
 	r := mux.NewRouter()
-	r.PathPrefix(cfg.apl.Prefix).Handler(httpHandler(&cfg.apl, log, wm.JobQueue))
+	r.PathPrefix(cfg.apl.Prefix).Handler(srv.httpHandler())
 
 	return r, wm
 }

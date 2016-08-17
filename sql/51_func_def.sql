@@ -5,31 +5,7 @@
 
 /* ------------------------------------------------------------------------- */
 
-CREATE OR REPLACE FUNCTION pg_func_arg_prefix() RETURNS TEXT IMMUTABLE LANGUAGE 'sql' AS
-$_$
-  SELECT 'a_'::TEXT
-$_$;
-COMMENT ON FUNCTION pg_func_arg_prefix() IS 'Prefix removed from argument names in public definitions';
-
-CREATE OR REPLACE FUNCTION pg_func_search_nsp(a_code TEXT) RETURNS TEXT STABLE LANGUAGE 'sql' AS
-$_$
-  SELECT s::TEXT
-    FROM unnest(current_schemas(false)) s
-   WHERE EXISTS (SELECT 1 FROM pg_proc p WHERE p.pronamespace = s::regnamespace AND proname = $1)
-   LIMIT 1
-$_$;
-COMMENT ON FUNCTION pg_func_search_nsp(TEXT) IS 'Find first namespace in search path with name function in';
-
-/*
-CREATE OR REPLACE FUNCTION pg_func_name(a_code TEXT) RETURNS TEXT STABLE LANGUAGE 'sql' AS
-$_$
-SELECT CASE WHEN split_part($1, '.', 2) = '' THEN pg_func_search_nsp($1)||'.'||$1
-ELSE $1 END
-$_$;
-COMMENT ON FUNCTION pg_func_name(TEXT) IS 'Add namespace name to function name if dont given';
-*/
-
-CREATE OR REPLACE FUNCTION pg_func_args(a_nspname TEXT, a_proname TEXT) RETURNS TABLE(id INT, name TEXT, type TEXT, def TEXT, def_is_null BOOL) STABLE LANGUAGE 'plpgsql' AS
+CREATE OR REPLACE FUNCTION pg_func_args(a_nspname TEXT, a_proname TEXT) RETURNS TABLE(arg TEXT, type TEXT, id INT, def TEXT, def_is_null BOOL) STABLE LANGUAGE 'plpgsql' AS
 $_$
   -- a_code:  название функции
   DECLARE
@@ -37,12 +13,11 @@ $_$
     v_args       TEXT;
     v_defs       TEXT[];
     v_def        TEXT;
-    v_name       TEXT;
+    v_arg        TEXT;
     v_type       TEXT;
     v_default    TEXT;
     v_def_is_null BOOL;
   BEGIN
-    a_nspname := COALESCE(a_nspname, pg_func_search_nsp(a_proname));
     SELECT INTO v_args
       pg_get_function_arguments(p.oid)
       FROM pg_catalog.pg_proc p
@@ -89,10 +64,10 @@ $_$
       ELSE
         v_default := NULL;
       END IF;
-      v_name := regexp_replace(split_part(v_def, ' ', 2), '^' || pg_func_arg_prefix(), '');
+      v_arg  := regexp_replace(split_part(v_def, ' ', 2), '^' || pg_func_arg_prefix(), '');
       v_type := split_part(v_def, ' ', 3);
-      RAISE DEBUG '   column %: name=%, type=%, def=%, null=%', v_i, v_name, v_type, v_default, v_def_is_null;
-        RETURN QUERY SELECT v_i, v_name, v_type, v_default, v_def_is_null;
+      RAISE DEBUG '   column %: name=%, type=%, def=%, null=%', v_i, v_arg, v_type, v_default, v_def_is_null;
+        RETURN QUERY SELECT v_arg, v_type, v_i, v_default, v_def_is_null;
     END LOOP;
     RETURN;
   END;
@@ -101,7 +76,7 @@ COMMENT ON FUNCTION pg_func_args(TEXT, TEXT) IS 'Return function argument defini
 
 /* ------------------------------------------------------------------------- */
 
-CREATE OR REPLACE FUNCTION pg_func_result(a_nspname TEXT, a_proname TEXT) RETURNS TABLE(name TEXT, type TEXT) STABLE LANGUAGE 'plpgsql' AS
+CREATE OR REPLACE FUNCTION pg_func_result(a_nspname TEXT, a_proname TEXT) RETURNS TABLE(arg TEXT, type TEXT) STABLE LANGUAGE 'plpgsql' AS
 $_$
   -- a_code:  название функции
   DECLARE
@@ -110,7 +85,6 @@ $_$
     v_defs       TEXT[];
     v_i          INTEGER;
   BEGIN
-    a_nspname := COALESCE(a_nspname, pg_func_search_nsp(a_proname));
     SELECT INTO v_is_set, v_ret 
       p.proretset, pg_get_function_result(p.oid)
       FROM pg_catalog.pg_proc p

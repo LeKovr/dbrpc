@@ -13,7 +13,11 @@ import (
 	"github.com/LeKovr/go-base/logger"
 )
 
-type tableRow map[string]interface{}
+// TableRow holds query result row
+type TableRow map[string]interface{}
+
+// TableRows holds slice of query result rows
+type TableRows []TableRow
 
 // -----------------------------------------------------------------------------
 
@@ -71,6 +75,52 @@ func dbFetcher(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool) groupcache.Gett
 
 // -----------------------------------------------------------------------------
 
+// FuncDef holds function definition
+type FuncDef struct {
+	NspName string // function namespace
+	ProName string // function name
+	// ToDo: cache, permission etc
+}
+
+// FuncMap holds map of function definitions
+type FuncMap map[string]FuncDef
+
+// -----------------------------------------------------------------------------
+
+func indexFetcher(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool) (index *FuncMap, err error) {
+	var rows *pgx.Rows
+
+	q := fmt.Sprintf("select code, nspname, proname from %s()", cfg.ArgIndexFunc)
+	log.Debugf("Query: %s", q)
+
+	rows, err = db.Query(q)
+	if err != nil {
+		return
+	}
+
+	ind := FuncMap{}
+	for rows.Next() {
+		var fmr FuncDef
+		var code string
+		err = rows.Scan(&code, &fmr.NspName, &fmr.ProName) // ToDo: cache, permission etc
+		if err != nil {
+			log.Warnf("Value fetch error: %s", err.Error())
+			return
+		}
+		ind[code] = fmr
+	}
+	// Any errors encountered by rows.Next or rows.Scan will be returned here
+	if rows.Err() != nil {
+		err = rows.Err()
+		return
+	}
+	log.Debugf("Index: %+v", ind)
+	index = &ind
+	return
+}
+
+// -----------------------------------------------------------------------------
+
 func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool, key string) (data []byte, err error) {
 	var args []interface{}
 	var rows *pgx.Rows
@@ -87,11 +137,17 @@ func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool, key string) (data
 		return
 	}
 
-	data, err = FetchSQLResult(rows, log)
+	table, err := FetchSQLResult(rows, log)
 	defer rows.Close()
 	if err != nil {
 		return
 	}
+
+	data, err = json.Marshal(*table)
+	if err != nil {
+		return
+	}
+
 	return
 }
 
@@ -99,8 +155,8 @@ func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool, key string) (data
 
 // PrepareFuncSQL prepares sql query with args placeholders
 func PrepareFuncSQL(cfg *AplFlags, args []interface{}) (string, []interface{}) {
-	mtd := args[0].(string)
-	argVals := args[1:]
+	proc := args[1].(string)
+	argVals := args[2:]
 
 	argValPrep := make([]interface{}, len(argVals))
 	argIDs := make([]string, len(argVals))
@@ -112,7 +168,14 @@ func PrepareFuncSQL(cfg *AplFlags, args []interface{}) (string, []interface{}) {
 
 	argIDStr := strings.Join(argIDs, ",")
 
-	q := fmt.Sprintf("select * from %s(%s)", mtd, argIDStr)
+	var q string
+	if args[0] != nil {
+		nsp := args[0].(string)
+		q = fmt.Sprintf("select * from %s.%s(%s)", nsp, proc, argIDStr)
+	} else {
+		// use search_path
+		q = fmt.Sprintf("select * from %s(%s)", proc, argIDStr)
+	}
 
 	return q, argValPrep
 }
@@ -120,7 +183,7 @@ func PrepareFuncSQL(cfg *AplFlags, args []interface{}) (string, []interface{}) {
 // -----------------------------------------------------------------------------
 
 // FetchSQLResult fetches sql result and marshalls it into json
-func FetchSQLResult(rows *pgx.Rows, log *logger.Log) (data []byte, err error) {
+func FetchSQLResult(rows *pgx.Rows, log *logger.Log) (data *TableRows, err error) {
 	// http://stackoverflow.com/a/29164115
 	columnDefs := rows.FieldDescriptions()
 	//log.Debugf("=========== %+v", columnDefs)
@@ -131,7 +194,7 @@ func FetchSQLResult(rows *pgx.Rows, log *logger.Log) (data []byte, err error) {
 		types = append(types, c.DataTypeName)
 	}
 
-	var tableData []tableRow
+	var tableData TableRows
 	for rows.Next() {
 		var values []interface{}
 		values, err = rows.Values()
@@ -164,8 +227,8 @@ func FetchSQLResult(rows *pgx.Rows, log *logger.Log) (data []byte, err error) {
 	}
 	if tableData == nil {
 		log.Warn("Empty result")
-		tableData = []tableRow{} // empty result is empty array
+		tableData = TableRows{} // empty result is empty array
 	}
-	data, err = json.Marshal(tableData)
+	data = &tableData
 	return
 }

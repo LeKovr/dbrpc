@@ -1,39 +1,47 @@
 # crebas_misc.sql testing results
 
-* [pg_func_args](#pg_func_args)
-* [pg_func_result](#pg_func_result)
-* [dbsize](#dbsize)
-* [echo](#echo)
-* [echo_jsonb](#echo_jsonb)
-* [echo_single](#echo_single)
-* [echo_arr](#echo_arr)
+* [index](#index)
+* [func_args](#func_args)
+* [func_result](#func_result)
 * [echo_not_found](#echo_not_found)
 * [test_error](#test_error)
 
-## pg_func_args
-
-### Arguments: nspname=public&proname=dbsize
+## index
 
 #### GET
 
 ```
-curl -gis http://localhost:8081/api/pg_func_args?nspname=public&proname=dbsize
+curl -gis http://localhost:8081/rpc/index
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 462.021µs
-Content-Length: 93
+X-Elapsed: 13.80067ms
+Content-Length: 531
 
 ```
 ```json
 {
   "result": [
     {
-      "type": "text",
-      "name": "name",
-      "id": 1,
-      "def_is_null": false,
-      "def": ""
+      "sample": "{\"code\":\"func_args\", \"lang\":\"ru\"}",
+      "proname": "func_args",
+      "nspname": "dbrpc",
+      "code": "func_args",
+      "anno": "Описание аргументов процедуры"
+    },
+    {
+      "sample": "{\"code\":\"func_args\", \"lang\":\"ru\"}",
+      "proname": "func_result",
+      "nspname": "dbrpc",
+      "code": "func_result",
+      "anno": "Описание результата процедуры"
+    },
+    {
+      "sample": "{\"a_lang\":\"ru\"}",
+      "proname": "index",
+      "nspname": "dbrpc",
+      "code": "index",
+      "anno": "Список описаний процедур"
     }
   ],
   "success": true
@@ -43,22 +51,36 @@ Content-Length: 93
 #### Postgrest
 
 ```
-curl -is -d {"nspname":"public","proname":"dbsize"} -H Content-type: application/json http://localhost:8081/api/pg_func_args
+curl -is -d {} -H Content-type: application/json http://localhost:8081/rpc/index
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 428.72µs
-Content-Length: 67
+X-Elapsed: 722.404µs
+Content-Length: 505
 
 ```
 ```json
 [
   {
-    "type": "text",
-    "name": "name",
-    "id": 1,
-    "def_is_null": false,
-    "def": ""
+    "sample": "{\"code\":\"func_args\", \"lang\":\"ru\"}",
+    "proname": "func_args",
+    "nspname": "dbrpc",
+    "code": "func_args",
+    "anno": "Описание аргументов процедуры"
+  },
+  {
+    "sample": "{\"code\":\"func_args\", \"lang\":\"ru\"}",
+    "proname": "func_result",
+    "nspname": "dbrpc",
+    "code": "func_result",
+    "anno": "Описание результата процедуры"
+  },
+  {
+    "sample": "{\"a_lang\":\"ru\"}",
+    "proname": "index",
+    "nspname": "dbrpc",
+    "code": "index",
+    "anno": "Список описаний процедур"
   }
 ]
 ```
@@ -66,24 +88,38 @@ Content-Length: 67
 #### JSON-RPC 2.0
 
 ```
-D='{"jsonrpc":"2.0","id":1,"method":"pg_func_args","params":{"nspname":"public","proname":"dbsize"}}'
-curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
+D='{"jsonrpc":"2.0","id":1,"method":"index"}'
+curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/rpc/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 395.839µs
-Content-Length: 101
+X-Elapsed: 273.229µs
+Content-Length: 539
 
 ```
 ```json
 {
   "result": [
     {
-      "type": "text",
-      "name": "name",
-      "id": 1,
-      "def_is_null": false,
-      "def": ""
+      "sample": "{\"code\":\"func_args\", \"lang\":\"ru\"}",
+      "proname": "func_args",
+      "nspname": "dbrpc",
+      "code": "func_args",
+      "anno": "Описание аргументов процедуры"
+    },
+    {
+      "sample": "{\"code\":\"func_args\", \"lang\":\"ru\"}",
+      "proname": "func_result",
+      "nspname": "dbrpc",
+      "code": "func_result",
+      "anno": "Описание результата процедуры"
+    },
+    {
+      "sample": "{\"a_lang\":\"ru\"}",
+      "proname": "index",
+      "nspname": "dbrpc",
+      "code": "index",
+      "anno": "Список описаний процедур"
     }
   ],
   "jsonrpc": "2.0",
@@ -91,35 +127,42 @@ Content-Length: 101
 }
 ```
 
-### Arguments: nspname=public&proname=pg_func_args
+### Arguments: lang=ru
 
 #### GET
 
 ```
-curl -gis http://localhost:8081/api/pg_func_args?nspname=public&proname=pg_func_args
+curl -gis http://localhost:8081/rpc/index?lang=ru
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 471.319µs
-Content-Length: 169
+X-Elapsed: 1.17035ms
+Content-Length: 531
 
 ```
 ```json
 {
   "result": [
     {
-      "type": "text",
-      "name": "nspname",
-      "id": 1,
-      "def_is_null": false,
-      "def": null
+      "sample": "{\"code\":\"func_args\", \"lang\":\"ru\"}",
+      "proname": "func_args",
+      "nspname": "dbrpc",
+      "code": "func_args",
+      "anno": "Описание аргументов процедуры"
     },
     {
-      "type": "text",
-      "name": "proname",
-      "id": 2,
-      "def_is_null": false,
-      "def": null
+      "sample": "{\"code\":\"func_args\", \"lang\":\"ru\"}",
+      "proname": "func_result",
+      "nspname": "dbrpc",
+      "code": "func_result",
+      "anno": "Описание результата процедуры"
+    },
+    {
+      "sample": "{\"a_lang\":\"ru\"}",
+      "proname": "index",
+      "nspname": "dbrpc",
+      "code": "index",
+      "anno": "Список описаний процедур"
     }
   ],
   "success": true
@@ -129,29 +172,224 @@ Content-Length: 169
 #### Postgrest
 
 ```
-curl -is -d {"nspname":"public","proname":"pg_func_args"} -H Content-type: application/json http://localhost:8081/api/pg_func_args
+curl -is -d {"lang":"ru"} -H Content-type: application/json http://localhost:8081/rpc/index
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 497.276µs
-Content-Length: 143
+X-Elapsed: 534.091µs
+Content-Length: 505
+
+```
+```json
+[
+  {
+    "sample": "{\"code\":\"func_args\", \"lang\":\"ru\"}",
+    "proname": "func_args",
+    "nspname": "dbrpc",
+    "code": "func_args",
+    "anno": "Описание аргументов процедуры"
+  },
+  {
+    "sample": "{\"code\":\"func_args\", \"lang\":\"ru\"}",
+    "proname": "func_result",
+    "nspname": "dbrpc",
+    "code": "func_result",
+    "anno": "Описание результата процедуры"
+  },
+  {
+    "sample": "{\"a_lang\":\"ru\"}",
+    "proname": "index",
+    "nspname": "dbrpc",
+    "code": "index",
+    "anno": "Список описаний процедур"
+  }
+]
+```
+
+#### JSON-RPC 2.0
+
+```
+D='{"jsonrpc":"2.0","id":1,"method":"index","params":{"lang":"ru"}}'
+curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/rpc/
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+X-Elapsed: 973.244µs
+Content-Length: 539
+
+```
+```json
+{
+  "result": [
+    {
+      "sample": "{\"code\":\"func_args\", \"lang\":\"ru\"}",
+      "proname": "func_args",
+      "nspname": "dbrpc",
+      "code": "func_args",
+      "anno": "Описание аргументов процедуры"
+    },
+    {
+      "sample": "{\"code\":\"func_args\", \"lang\":\"ru\"}",
+      "proname": "func_result",
+      "nspname": "dbrpc",
+      "code": "func_result",
+      "anno": "Описание результата процедуры"
+    },
+    {
+      "sample": "{\"a_lang\":\"ru\"}",
+      "proname": "index",
+      "nspname": "dbrpc",
+      "code": "index",
+      "anno": "Список описаний процедур"
+    }
+  ],
+  "jsonrpc": "2.0",
+  "id": 1
+}
+```
+
+## func_args
+
+### Arguments: code=index
+
+#### GET
+
+```
+curl -gis http://localhost:8081/rpc/func_args?code=index
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+X-Elapsed: 6.497184ms
+Content-Length: 130
+
+```
+```json
+{
+  "result": [
+    {
+      "type": "text",
+      "def_is_null": false,
+      "def": "ru",
+      "arg": "lang",
+      "anno": "Язык документации"
+    }
+  ],
+  "success": true
+}
+```
+
+#### Postgrest
+
+```
+curl -is -d {"code":"index"} -H Content-type: application/json http://localhost:8081/rpc/func_args
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+X-Elapsed: 370.841µs
+Content-Length: 104
 
 ```
 ```json
 [
   {
     "type": "text",
-    "name": "nspname",
-    "id": 1,
     "def_is_null": false,
-    "def": null
+    "def": "ru",
+    "arg": "lang",
+    "anno": "Язык документации"
+  }
+]
+```
+
+#### JSON-RPC 2.0
+
+```
+D='{"jsonrpc":"2.0","id":1,"method":"func_args","params":{"code":"index"}}'
+curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/rpc/
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+X-Elapsed: 857.852µs
+Content-Length: 138
+
+```
+```json
+{
+  "result": [
+    {
+      "type": "text",
+      "def_is_null": false,
+      "def": "ru",
+      "arg": "lang",
+      "anno": "Язык документации"
+    }
+  ],
+  "jsonrpc": "2.0",
+  "id": 1
+}
+```
+
+### Arguments: code=func_args
+
+#### GET
+
+```
+curl -gis http://localhost:8081/rpc/func_args?code=func_args
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+X-Elapsed: 4.908635ms
+Content-Length: 225
+
+```
+```json
+{
+  "result": [
+    {
+      "type": "text",
+      "def_is_null": false,
+      "def": null,
+      "arg": "code",
+      "anno": "Имя процедуры"
+    },
+    {
+      "type": "text",
+      "def_is_null": false,
+      "def": "ru",
+      "arg": "lang",
+      "anno": "Язык документации"
+    }
+  ],
+  "success": true
+}
+```
+
+#### Postgrest
+
+```
+curl -is -d {"code":"func_args"} -H Content-type: application/json http://localhost:8081/rpc/func_args
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+X-Elapsed: 384.206µs
+Content-Length: 199
+
+```
+```json
+[
+  {
+    "type": "text",
+    "def_is_null": false,
+    "def": null,
+    "arg": "code",
+    "anno": "Имя процедуры"
   },
   {
     "type": "text",
-    "name": "proname",
-    "id": 2,
     "def_is_null": false,
-    "def": null
+    "def": "ru",
+    "arg": "lang",
+    "anno": "Язык документации"
   }
 ]
 ```
@@ -159,13 +397,13 @@ Content-Length: 143
 #### JSON-RPC 2.0
 
 ```
-D='{"jsonrpc":"2.0","id":1,"method":"pg_func_args","params":{"nspname":"public","proname":"pg_func_args"}}'
-curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
+D='{"jsonrpc":"2.0","id":1,"method":"func_args","params":{"code":"func_args"}}'
+curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/rpc/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 554.326µs
-Content-Length: 177
+X-Elapsed: 372.615µs
+Content-Length: 233
 
 ```
 ```json
@@ -173,17 +411,17 @@ Content-Length: 177
   "result": [
     {
       "type": "text",
-      "name": "nspname",
-      "id": 1,
       "def_is_null": false,
-      "def": null
+      "def": null,
+      "arg": "code",
+      "anno": "Имя процедуры"
     },
     {
       "type": "text",
-      "name": "proname",
-      "id": 2,
       "def_is_null": false,
-      "def": null
+      "def": "ru",
+      "arg": "lang",
+      "anno": "Язык документации"
     }
   ],
   "jsonrpc": "2.0",
@@ -191,47 +429,281 @@ Content-Length: 177
 }
 ```
 
-## pg_func_result
-
-### Arguments: nspname=public&proname=pg_func_args
+### Arguments: code=func_result
 
 #### GET
 
 ```
-curl -gis http://localhost:8081/api/pg_func_result?nspname=public&proname=pg_func_args
+curl -gis http://localhost:8081/rpc/func_args?code=func_result
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 295.378µs
-Content-Length: 216
+X-Elapsed: 2.694983ms
+Content-Length: 225
 
 ```
 ```json
 {
   "result": [
     {
-      "type": "TABLE",
-      "name": null
-    },
-    {
-      "type": "integer",
-      "name": "id"
+      "type": "text",
+      "def_is_null": false,
+      "def": null,
+      "arg": "code",
+      "anno": "Имя процедуры"
     },
     {
       "type": "text",
-      "name": "name"
+      "def_is_null": false,
+      "def": "ru",
+      "arg": "lang",
+      "anno": "Язык документации"
+    }
+  ],
+  "success": true
+}
+```
+
+#### Postgrest
+
+```
+curl -is -d {"code":"func_result"} -H Content-type: application/json http://localhost:8081/rpc/func_args
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+X-Elapsed: 586.331µs
+Content-Length: 199
+
+```
+```json
+[
+  {
+    "type": "text",
+    "def_is_null": false,
+    "def": null,
+    "arg": "code",
+    "anno": "Имя процедуры"
+  },
+  {
+    "type": "text",
+    "def_is_null": false,
+    "def": "ru",
+    "arg": "lang",
+    "anno": "Язык документации"
+  }
+]
+```
+
+#### JSON-RPC 2.0
+
+```
+D='{"jsonrpc":"2.0","id":1,"method":"func_args","params":{"code":"func_result"}}'
+curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/rpc/
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+X-Elapsed: 199.753µs
+Content-Length: 233
+
+```
+```json
+{
+  "result": [
+    {
+      "type": "text",
+      "def_is_null": false,
+      "def": null,
+      "arg": "code",
+      "anno": "Имя процедуры"
     },
     {
       "type": "text",
-      "name": "type"
+      "def_is_null": false,
+      "def": "ru",
+      "arg": "lang",
+      "anno": "Язык документации"
+    }
+  ],
+  "jsonrpc": "2.0",
+  "id": 1
+}
+```
+
+## func_result
+
+### Arguments: code=index
+
+#### GET
+
+```
+curl -gis http://localhost:8081/rpc/func_result?code=index
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+X-Elapsed: 10.823916ms
+Content-Length: 383
+
+```
+```json
+{
+  "result": [
+    {
+      "type": "text",
+      "arg": "code",
+      "anno": "Имя процедуры"
+    },
+    {
+      "type": "name",
+      "arg": "nspname",
+      "anno": "Имя схемы хранимой функции"
+    },
+    {
+      "type": "name",
+      "arg": "proname",
+      "anno": "Имя хранимой функции"
     },
     {
       "type": "text",
-      "name": "def"
+      "arg": "anno",
+      "anno": "Описание"
+    },
+    {
+      "type": "text",
+      "arg": "sample",
+      "anno": "Пример вызова"
+    }
+  ],
+  "success": true
+}
+```
+
+#### Postgrest
+
+```
+curl -is -d {"code":"index"} -H Content-type: application/json http://localhost:8081/rpc/func_result
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+X-Elapsed: 485.613µs
+Content-Length: 357
+
+```
+```json
+[
+  {
+    "type": "text",
+    "arg": "code",
+    "anno": "Имя процедуры"
+  },
+  {
+    "type": "name",
+    "arg": "nspname",
+    "anno": "Имя схемы хранимой функции"
+  },
+  {
+    "type": "name",
+    "arg": "proname",
+    "anno": "Имя хранимой функции"
+  },
+  {
+    "type": "text",
+    "arg": "anno",
+    "anno": "Описание"
+  },
+  {
+    "type": "text",
+    "arg": "sample",
+    "anno": "Пример вызова"
+  }
+]
+```
+
+#### JSON-RPC 2.0
+
+```
+D='{"jsonrpc":"2.0","id":1,"method":"func_result","params":{"code":"index"}}'
+curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/rpc/
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+X-Elapsed: 557.214µs
+Content-Length: 391
+
+```
+```json
+{
+  "result": [
+    {
+      "type": "text",
+      "arg": "code",
+      "anno": "Имя процедуры"
+    },
+    {
+      "type": "name",
+      "arg": "nspname",
+      "anno": "Имя схемы хранимой функции"
+    },
+    {
+      "type": "name",
+      "arg": "proname",
+      "anno": "Имя хранимой функции"
+    },
+    {
+      "type": "text",
+      "arg": "anno",
+      "anno": "Описание"
+    },
+    {
+      "type": "text",
+      "arg": "sample",
+      "anno": "Пример вызова"
+    }
+  ],
+  "jsonrpc": "2.0",
+  "id": 1
+}
+```
+
+### Arguments: code=func_args
+
+#### GET
+
+```
+curl -gis http://localhost:8081/rpc/func_result?code=func_args
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+X-Elapsed: 3.271638ms
+Content-Length: 401
+
+```
+```json
+{
+  "result": [
+    {
+      "type": "text",
+      "arg": "arg",
+      "anno": "Имя аргумента"
+    },
+    {
+      "type": "text",
+      "arg": "type",
+      "anno": "Тип аргумента"
+    },
+    {
+      "type": "text",
+      "arg": "def",
+      "anno": "Значение по умолчанию"
     },
     {
       "type": "boolean",
-      "name": "def_is_null"
+      "arg": "def_is_null",
+      "anno": "Значение по умолчанию задано как NULL"
+    },
+    {
+      "type": "text",
+      "arg": "anno",
+      "anno": "Описание"
     }
   ],
   "success": true
@@ -241,153 +713,40 @@ Content-Length: 216
 #### Postgrest
 
 ```
-curl -is -d {"nspname":"public","proname":"pg_func_args"} -H Content-type: application/json http://localhost:8081/api/pg_func_result
+curl -is -d {"code":"func_args"} -H Content-type: application/json http://localhost:8081/rpc/func_result
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 290.824µs
-Content-Length: 190
+X-Elapsed: 275.308µs
+Content-Length: 375
 
 ```
 ```json
 [
   {
-    "type": "TABLE",
-    "name": null
-  },
-  {
-    "type": "integer",
-    "name": "id"
+    "type": "text",
+    "arg": "arg",
+    "anno": "Имя аргумента"
   },
   {
     "type": "text",
-    "name": "name"
+    "arg": "type",
+    "anno": "Тип аргумента"
   },
   {
     "type": "text",
-    "name": "type"
-  },
-  {
-    "type": "text",
-    "name": "def"
+    "arg": "def",
+    "anno": "Значение по умолчанию"
   },
   {
     "type": "boolean",
-    "name": "def_is_null"
-  }
-]
-```
-
-#### JSON-RPC 2.0
-
-```
-D='{"jsonrpc":"2.0","id":1,"method":"pg_func_result","params":{"nspname":"public","proname":"pg_func_args"}}'
-curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 322.082µs
-Content-Length: 224
-
-```
-```json
-{
-  "result": [
-    {
-      "type": "TABLE",
-      "name": null
-    },
-    {
-      "type": "integer",
-      "name": "id"
-    },
-    {
-      "type": "text",
-      "name": "name"
-    },
-    {
-      "type": "text",
-      "name": "type"
-    },
-    {
-      "type": "text",
-      "name": "def"
-    },
-    {
-      "type": "boolean",
-      "name": "def_is_null"
-    }
-  ],
-  "jsonrpc": "2.0",
-  "id": 1
-}
-```
-
-### Arguments: nspname=public&proname=dbsize
-
-#### GET
-
-```
-curl -gis http://localhost:8081/api/pg_func_result?nspname=public&proname=dbsize
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 548.243µs
-Content-Length: 147
-
-```
-```json
-{
-  "result": [
-    {
-      "type": "TABLE",
-      "name": null
-    },
-    {
-      "type": "name",
-      "name": "name"
-    },
-    {
-      "type": "name",
-      "name": "owner"
-    },
-    {
-      "type": "text",
-      "name": "size"
-    }
-  ],
-  "success": true
-}
-```
-
-#### Postgrest
-
-```
-curl -is -d {"nspname":"public","proname":"dbsize"} -H Content-type: application/json http://localhost:8081/api/pg_func_result
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 270.481µs
-Content-Length: 121
-
-```
-```json
-[
-  {
-    "type": "TABLE",
-    "name": null
-  },
-  {
-    "type": "name",
-    "name": "name"
-  },
-  {
-    "type": "name",
-    "name": "owner"
+    "arg": "def_is_null",
+    "anno": "Значение по умолчанию задано как NULL"
   },
   {
     "type": "text",
-    "name": "size"
+    "arg": "anno",
+    "anno": "Описание"
   }
 ]
 ```
@@ -395,416 +754,42 @@ Content-Length: 121
 #### JSON-RPC 2.0
 
 ```
-D='{"jsonrpc":"2.0","id":1,"method":"pg_func_result","params":{"nspname":"public","proname":"dbsize"}}'
-curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
+D='{"jsonrpc":"2.0","id":1,"method":"func_result","params":{"code":"func_args"}}'
+curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/rpc/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 293.16µs
-Content-Length: 155
+X-Elapsed: 935.99µs
+Content-Length: 409
 
 ```
 ```json
 {
   "result": [
     {
-      "type": "TABLE",
-      "name": null
-    },
-    {
-      "type": "name",
-      "name": "name"
-    },
-    {
-      "type": "name",
-      "name": "owner"
+      "type": "text",
+      "arg": "arg",
+      "anno": "Имя аргумента"
     },
     {
       "type": "text",
-      "name": "size"
-    }
-  ],
-  "jsonrpc": "2.0",
-  "id": 1
-}
-```
-
-## dbsize
-
-### Arguments: name=template1
-
-#### GET
-
-```
-curl -gis http://localhost:8081/api/dbsize?name=template1
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 253.23µs
-Content-Length: 84
-
-```
-```json
-{
-  "result": [
-    {
-      "size": "6873 kB",
-      "owner": "postgres",
-      "name": "template1"
-    }
-  ],
-  "success": true
-}
-```
-
-#### Postgrest
-
-```
-curl -is -d {"name":"template1"} -H Content-type: application/json http://localhost:8081/api/dbsize
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 262.568µs
-Content-Length: 58
-
-```
-```json
-[
-  {
-    "size": "6873 kB",
-    "owner": "postgres",
-    "name": "template1"
-  }
-]
-```
-
-#### JSON-RPC 2.0
-
-```
-D='{"jsonrpc":"2.0","id":1,"method":"dbsize","params":{"name":"template1"}}'
-curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 601.997µs
-Content-Length: 92
-
-```
-```json
-{
-  "result": [
-    {
-      "size": "6873 kB",
-      "owner": "postgres",
-      "name": "template1"
-    }
-  ],
-  "jsonrpc": "2.0",
-  "id": 1
-}
-```
-
-### Arguments: name=template1
-
-#### GET
-
-```
-curl -gis http://localhost:8081/api/dbsize?name=template1
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 446.059µs
-Content-Length: 84
-
-```
-```json
-{
-  "result": [
-    {
-      "size": "6873 kB",
-      "owner": "postgres",
-      "name": "template1"
-    }
-  ],
-  "success": true
-}
-```
-
-#### Postgrest
-
-```
-curl -is -d {"name":"template1"} -H Content-type: application/json http://localhost:8081/api/dbsize
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 312.007µs
-Content-Length: 58
-
-```
-```json
-[
-  {
-    "size": "6873 kB",
-    "owner": "postgres",
-    "name": "template1"
-  }
-]
-```
-
-#### JSON-RPC 2.0
-
-```
-D='{"jsonrpc":"2.0","id":1,"method":"dbsize","params":{"name":"template1"}}'
-curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 297.964µs
-Content-Length: 92
-
-```
-```json
-{
-  "result": [
-    {
-      "size": "6873 kB",
-      "owner": "postgres",
-      "name": "template1"
-    }
-  ],
-  "jsonrpc": "2.0",
-  "id": 1
-}
-```
-
-## echo
-
-### Arguments: name=test&id=1
-
-#### GET
-
-```
-curl -gis http://localhost:8081/api/echo?name=test&id=1
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 204.396µs
-Content-Length: 50
-
-```
-```json
-{
-  "result": [
-    {
-      "name": "test",
-      "id": 1
-    }
-  ],
-  "success": true
-}
-```
-
-#### Postgrest
-
-```
-curl -is -d {"name":"test","id":"1"} -H Content-type: application/json http://localhost:8081/api/echo
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 478.119µs
-Content-Length: 24
-
-```
-```json
-[
-  {
-    "name": "test",
-    "id": 1
-  }
-]
-```
-
-#### JSON-RPC 2.0
-
-```
-D='{"jsonrpc":"2.0","id":1,"method":"echo","params":{"name":"test","id":"1"}}'
-curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 621.614µs
-Content-Length: 58
-
-```
-```json
-{
-  "result": [
-    {
-      "name": "test",
-      "id": 1
-    }
-  ],
-  "jsonrpc": "2.0",
-  "id": 1
-}
-```
-
-### Arguments: name=test
-
-#### GET
-
-```
-curl -gis http://localhost:8081/api/echo?name=test
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 267.219µs
-Content-Length: 50
-
-```
-```json
-{
-  "result": [
-    {
-      "name": "test",
-      "id": 5
-    }
-  ],
-  "success": true
-}
-```
-
-#### Postgrest
-
-```
-curl -is -d {"name":"test"} -H Content-type: application/json http://localhost:8081/api/echo
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 613.67µs
-Content-Length: 24
-
-```
-```json
-[
-  {
-    "name": "test",
-    "id": 5
-  }
-]
-```
-
-#### JSON-RPC 2.0
-
-```
-D='{"jsonrpc":"2.0","id":1,"method":"echo","params":{"name":"test"}}'
-curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 337.037µs
-Content-Length: 58
-
-```
-```json
-{
-  "result": [
-    {
-      "name": "test",
-      "id": 5
-    }
-  ],
-  "jsonrpc": "2.0",
-  "id": 1
-}
-```
-
-## echo_jsonb
-
-### Arguments: name=test
-
-#### GET
-
-```
-curl -gis http://localhost:8081/api/echo_jsonb?name=test
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 397.934µs
-Content-Length: 77
-
-```
-```json
-{
-  "result": [
-    {
-      "name": "test",
-      "js": {
-        "b": [
-          "c",
-          "d"
-        ],
-        "a": 2
-      },
-      "id": 5
-    }
-  ],
-  "success": true
-}
-```
-
-#### Postgrest
-
-```
-curl -is -d {"name":"test"} -H Content-type: application/json http://localhost:8081/api/echo_jsonb
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 1.244392ms
-Content-Length: 51
-
-```
-```json
-[
-  {
-    "name": "test",
-    "js": {
-      "b": [
-        "c",
-        "d"
-      ],
-      "a": 2
+      "arg": "type",
+      "anno": "Тип аргумента"
     },
-    "id": 5
-  }
-]
-```
-
-#### JSON-RPC 2.0
-
-```
-D='{"jsonrpc":"2.0","id":1,"method":"echo_jsonb","params":{"name":"test"}}'
-curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 508.233µs
-Content-Length: 85
-
-```
-```json
-{
-  "result": [
     {
-      "name": "test",
-      "js": {
-        "b": [
-          "c",
-          "d"
-        ],
-        "a": 2
-      },
-      "id": 5
+      "type": "text",
+      "arg": "def",
+      "anno": "Значение по умолчанию"
+    },
+    {
+      "type": "boolean",
+      "arg": "def_is_null",
+      "anno": "Значение по умолчанию задано как NULL"
+    },
+    {
+      "type": "text",
+      "arg": "anno",
+      "anno": "Описание"
     }
   ],
   "jsonrpc": "2.0",
@@ -812,26 +797,36 @@ Content-Length: 85
 }
 ```
 
-## echo_single
-
-### Arguments: name=test
+### Arguments: code=func_result
 
 #### GET
 
 ```
-curl -gis http://localhost:8081/api/echo_single?name=test
+curl -gis http://localhost:8081/rpc/func_result?code=func_result
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 290.893µs
-Content-Length: 50
+X-Elapsed: 7.0286ms
+Content-Length: 209
 
 ```
 ```json
 {
   "result": [
     {
-      "echo_single": "test"
+      "type": "text",
+      "arg": "arg",
+      "anno": "Имя аргумента"
+    },
+    {
+      "type": "text",
+      "arg": "type",
+      "anno": "Тип аргумента"
+    },
+    {
+      "type": "text",
+      "arg": "anno",
+      "anno": "Описание"
     }
   ],
   "success": true
@@ -841,18 +836,30 @@ Content-Length: 50
 #### Postgrest
 
 ```
-curl -is -d {"name":"test"} -H Content-type: application/json http://localhost:8081/api/echo_single
+curl -is -d {"code":"func_result"} -H Content-type: application/json http://localhost:8081/rpc/func_result
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 269.007µs
-Content-Length: 24
+X-Elapsed: 315.289µs
+Content-Length: 183
 
 ```
 ```json
 [
   {
-    "echo_single": "test"
+    "type": "text",
+    "arg": "arg",
+    "anno": "Имя аргумента"
+  },
+  {
+    "type": "text",
+    "arg": "type",
+    "anno": "Тип аргумента"
+  },
+  {
+    "type": "text",
+    "arg": "anno",
+    "anno": "Описание"
   }
 ]
 ```
@@ -860,177 +867,32 @@ Content-Length: 24
 #### JSON-RPC 2.0
 
 ```
-D='{"jsonrpc":"2.0","id":1,"method":"echo_single","params":{"name":"test"}}'
-curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
+D='{"jsonrpc":"2.0","id":1,"method":"func_result","params":{"code":"func_result"}}'
+curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/rpc/
 
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 486.74µs
-Content-Length: 58
+X-Elapsed: 450.824µs
+Content-Length: 217
 
 ```
 ```json
 {
   "result": [
     {
-      "echo_single": "test"
-    }
-  ],
-  "jsonrpc": "2.0",
-  "id": 1
-}
-```
-
-## echo_arr
-
-### Arguments: name=test1&name=test2
-
-#### GET
-
-```
-curl -gis http://localhost:8081/api/echo_arr?name=test1&name=test2
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 491.109µs
-Content-Length: 61
-
-```
-```json
-{
-  "result": [
+      "type": "text",
+      "arg": "arg",
+      "anno": "Имя аргумента"
+    },
     {
-      "name": [
-        "test1",
-        "test2"
-      ],
-      "id": 5
-    }
-  ],
-  "success": true
-}
-```
-
-#### Postgrest
-
-```
-curl -is -d {"name":["test1","test2"]} -H Content-type: application/json http://localhost:8081/api/echo_arr
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 778.492µs
-Content-Length: 35
-
-```
-```json
-[
-  {
-    "name": [
-      "test1",
-      "test2"
-    ],
-    "id": 5
-  }
-]
-```
-
-#### JSON-RPC 2.0
-
-```
-D='{"jsonrpc":"2.0","id":1,"method":"echo_arr","params":{"name":["test1","test2"]}}'
-curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 343.429µs
-Content-Length: 69
-
-```
-```json
-{
-  "result": [
+      "type": "text",
+      "arg": "type",
+      "anno": "Тип аргумента"
+    },
     {
-      "name": [
-        "test1",
-        "test2"
-      ],
-      "id": 5
-    }
-  ],
-  "jsonrpc": "2.0",
-  "id": 1
-}
-```
-
-### Arguments: name=test1
-
-#### GET
-
-```
-curl -gis http://localhost:8081/api/echo_arr?name=test1
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 241.498µs
-Content-Length: 53
-
-```
-```json
-{
-  "result": [
-    {
-      "name": [
-        "test1"
-      ],
-      "id": 5
-    }
-  ],
-  "success": true
-}
-```
-
-#### Postgrest
-
-```
-curl -is -d {"name":["test1"]} -H Content-type: application/json http://localhost:8081/api/echo_arr
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 295.1µs
-Content-Length: 27
-
-```
-```json
-[
-  {
-    "name": [
-      "test1"
-    ],
-    "id": 5
-  }
-]
-```
-
-#### JSON-RPC 2.0
-
-```
-D='{"jsonrpc":"2.0","id":1,"method":"echo_arr","params":{"name":["test1"]}}'
-curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 251.5µs
-Content-Length: 61
-
-```
-```json
-{
-  "result": [
-    {
-      "name": [
-        "test1"
-      ],
-      "id": 5
+      "type": "text",
+      "arg": "anno",
+      "anno": "Описание"
     }
   ],
   "jsonrpc": "2.0",
@@ -1045,7 +907,7 @@ Content-Length: 61
 #### GET
 
 ```
-curl -gis http://localhost:8081/api/echo_not_found?name=test
+curl -gis http://localhost:8081/rpc/echo_not_found?name=test
 
 HTTP/1.1 404 Not Found
 Content-Type: text/plain; charset=utf-8
@@ -1058,7 +920,7 @@ Content-Length: 19
 #### Postgrest
 
 ```
-curl -is -d {"name":"test"} -H Content-type: application/json http://localhost:8081/api/echo_not_found
+curl -is -d {"name":"test"} -H Content-type: application/json http://localhost:8081/rpc/echo_not_found
 
 HTTP/1.1 404 Not Found
 Content-Type: text/plain; charset=utf-8
@@ -1072,18 +934,18 @@ Content-Length: 19
 
 ```
 D='{"jsonrpc":"2.0","id":1,"method":"echo_not_found","params":{"name":"test"}}'
-curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
+curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/rpc/
 
 HTTP/1.1 404 Not Found
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 319.755µs
-Content-Length: 145
+X-Elapsed: 106.785µs
+Content-Length: 87
 
 ```
 ```json
 {
   "error": {
-    "data": "ERROR: Function not found: echo_not_found (SQLSTATE P0001)",
+    "data": {},
     "message": "Method not found",
     "code": -32601
   },
@@ -1097,57 +959,47 @@ Content-Length: 145
 #### GET
 
 ```
-curl -gis http://localhost:8081/api/test_error
+curl -gis http://localhost:8081/rpc/test_error
 
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 356.513µs
-Content-Length: 121
+HTTP/1.1 404 Not Found
+Content-Type: text/plain; charset=utf-8
+X-Content-Type-Options: nosniff
+Content-Length: 19
 
-```
-```json
-{
-  "error": "ERROR: prepared statement \"SELECT $1 FROM table_not_exists\" does not exist (SQLSTATE 26000)",
-  "success": false
-}
+404 page not found
 ```
 
 #### Postgrest
 
 ```
-curl -is -d {} -H Content-type: application/json http://localhost:8081/api/test_error
+curl -is -d {} -H Content-type: application/json http://localhost:8081/rpc/test_error
 
-HTTP/1.1 400 Bad Request
-Content-Type: application/json; charset=UTF-8
-X-Elapsed: 360.485µs
-Content-Length: 137
+HTTP/1.1 404 Not Found
+Content-Type: text/plain; charset=utf-8
+X-Content-Type-Options: nosniff
+Content-Length: 19
 
-```
-```json
-{
-  "details": "ERROR: prepared statement \"SELECT $1 FROM table_not_exists\" does not exist (SQLSTATE 26000)",
-  "message": "Method call error"
-}
+404 page not found
 ```
 
 #### JSON-RPC 2.0
 
 ```
 D='{"jsonrpc":"2.0","id":1,"method":"test_error"}'
-curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/api/
+curl -is -d "$D" -H "Content-type: application/json" http://localhost:8081/rpc/
 
-HTTP/1.1 200 OK
+HTTP/1.1 404 Not Found
 Content-Type: application/json; charset=UTF-8
-X-Elapsed: 852.477µs
-Content-Length: 178
+X-Elapsed: 77.179µs
+Content-Length: 87
 
 ```
 ```json
 {
   "error": {
-    "data": "ERROR: prepared statement \"SELECT $1 FROM table_not_exists\" does not exist (SQLSTATE 26000)",
-    "message": "Internal Error",
-    "code": -32603
+    "data": {},
+    "message": "Method not found",
+    "code": -32601
   },
   "jsonrpc": "2.0",
   "id": 1

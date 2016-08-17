@@ -23,28 +23,20 @@
 # -o pipefail stops on 404 test
 set -eu
 
-HOST=http://localhost:8081/api
+HOST=http://localhost:8081/rpc
 
 # NOTE: real GET queries comes without '&name=' suffix
 AP=""
 
 Q=$(cat <<EOF
-pg_func_args?${AP}nspname=public&${AP}proname=dbsize
-pg_func_args?${AP}nspname=public&${AP}proname=pg_func_args
-pg_func_result?${AP}nspname=public&${AP}proname=pg_func_args
-pg_func_result?${AP}nspname=public&${AP}proname=dbsize
-
-dbsize?${AP}name=template1
-dbsize?${AP}name=template1
-
-echo?${AP}name=test&id=1
-echo?${AP}name=test
-echo_jsonb?${AP}name=test
-echo_single?${AP}name=test
-
-echo_arr?${AP}name=test1&${AP}name=test2
-echo_arr?${AP}name=test1&${AP}name=
-
+index
+index?lang=ru
+func_args?${AP}code=index
+func_args?${AP}code=func_args
+func_args?${AP}code=func_result
+func_result?${AP}code=index
+func_result?${AP}code=func_args
+func_result?${AP}code=func_result
 echo_not_found?${AP}name=test
 test_error
 EOF

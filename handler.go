@@ -19,15 +19,25 @@ import (
 
 // ArgDef holds function argument attributes
 type ArgDef struct {
-	ID        int32
-	Name      string
-	Type      string
+	ID        int32   `json:"id"`
+	Name      string  `json:"arg"`
+	Type      string  `json:"type"`
 	Default   *string `json:"def"`
 	DefIsNull bool    `json:"def_is_null"`
 }
 
-// FuncArgDef holds set of function argument attributes
+// FuncArgDef holds slice of function argument attributes
 type FuncArgDef []ArgDef
+
+// RPCServer holds server attributes
+type RPCServer struct {
+	cfg   *AplFlags
+	log   *logger.Log
+	jc    chan workman.Job
+	funcs *FuncMap
+}
+
+// -----------------------------------------------------------------------------
 
 // JSON-RPC v2.0 structures
 type reqParams map[string]interface{}
@@ -59,10 +69,10 @@ type respPGTError struct {
 
 // -----------------------------------------------------------------------------
 
-// FunctionDef creates a job for fetching of function argument definition
-func FunctionDef(cfg *AplFlags, log *logger.Log, jc chan workman.Job, method string) (FuncArgDef, interface{}) {
+// FunctionArgDef creates a job for fetching of function argument definition
+func (s RPCServer) FunctionArgDef(nsp, proc string) (FuncArgDef, interface{}) {
 
-	key := []*string{&cfg.ArgDefFunc, nil, &method}
+	key := []*string{nil, &s.cfg.ArgDefFunc, &nsp, &proc}
 
 	payload, _ := json.Marshal(key)
 	respChannel := make(chan workman.Result)
@@ -70,10 +80,10 @@ func FunctionDef(cfg *AplFlags, log *logger.Log, jc chan workman.Job, method str
 	work := workman.Job{Payload: string(payload), Result: respChannel}
 
 	// Push the work onto the queue.
-	jc <- work
+	s.jc <- work
 
 	resp := <-respChannel
-	log.Debugf("Got def: %s", resp.Result)
+	s.log.Debugf("Got def (%v): %s", resp.Success, resp.Result)
 	if !resp.Success {
 		return nil, resp.Error
 	}
@@ -104,8 +114,10 @@ func FunctionResult(jc chan workman.Job, payload string) workman.Result {
 
 // -----------------------------------------------------------------------------
 
-func httpHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job) http.HandlerFunc {
+func (s RPCServer) httpHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log := s.log
+		cfg := s.cfg
 		defer r.Body.Close()
 		log.Debugf("Request method: %s", r.Method)
 
@@ -126,13 +138,13 @@ func httpHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job) http.Handl
 		}
 
 		if r.Method == "GET" {
-			getContextHandler(cfg, log, jc, w, r, true)
+			s.getContextHandler(w, r, true)
 		} else if r.Method == "HEAD" {
-			getContextHandler(cfg, log, jc, w, r, false) // Like get but without data
+			s.getContextHandler(w, r, false) // Like get but without data
 		} else if r.Method == "POST" && r.URL.Path == cfg.Prefix {
-			postContextHandler(cfg, log, jc, w, r)
+			s.postContextHandler(w, r)
 		} else if r.Method == "POST" {
-			postgrestContextHandler(cfg, log, jc, w, r)
+			s.postgrestContextHandler(w, r)
 		} else if r.Method == "OPTIONS" {
 			w.Header().Add("Content-Type", "text/plain; charset=UTF-8")
 			w.WriteHeader(http.StatusNoContent)
@@ -173,14 +185,32 @@ func originAllowed(origins []string, origin string) bool {
 	return false
 }
 
+// FunctionDef returns function attributes from index() method
+func (s RPCServer) FunctionDef(method string) (*FuncDef, error) {
+	fm := *s.funcs
+
+	if def, ok := fm[method]; ok {
+		return &def, nil
+	}
+	return nil, fmt.Errorf("no method %s", method)
+}
+
 // -----------------------------------------------------------------------------
 
-func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w http.ResponseWriter, r *http.Request, reply bool) {
+func (s RPCServer) getContextHandler(w http.ResponseWriter, r *http.Request, reply bool) {
 	start := time.Now()
+	log := s.log
+	method := strings.TrimPrefix(r.URL.Path, s.cfg.Prefix)
+	method = strings.TrimSuffix(method, ".json") // Allow use .json in url
+	fd, err := s.FunctionDef(method)
+	if err != nil {
+		// Warning was when fetched from db
+		log.Infof("Method %s load def error: %s", method, err)
+		http.NotFound(w, r)
+		return
+	}
 
-	method := strings.TrimPrefix(r.URL.Path, cfg.Prefix)
-
-	argDef, errd := FunctionDef(cfg, log, jc, method)
+	argDef, errd := s.FunctionArgDef(fd.NspName, fd.ProName)
 	if errd != nil {
 		// Warning was when fetched from db
 		log.Infof("Method %s load def error: %s", method, errd)
@@ -188,7 +218,7 @@ func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w ht
 		return
 	}
 
-	key := []*string{&method}
+	key := []*string{&fd.NspName, &fd.ProName}
 	r.ParseForm()
 
 	f404 := []string{}
@@ -225,7 +255,7 @@ func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w ht
 	} else {
 		payload, _ := json.Marshal(key)
 		log.Debugf("Args: %s", string(payload))
-		result = FunctionResult(jc, string(payload))
+		result = FunctionResult(s.jc, string(payload))
 	}
 
 	if reply {
@@ -247,9 +277,10 @@ func getContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w ht
 // -----------------------------------------------------------------------------
 
 // postContextHandler serve JSON-RPC envelope
-func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w http.ResponseWriter, r *http.Request) {
+func (s RPCServer) postContextHandler(w http.ResponseWriter, r *http.Request) {
 
 	start := time.Now()
+	log := s.log
 
 	data, _ := ioutil.ReadAll(r.Body)
 	req := serverRequest{}
@@ -264,26 +295,33 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 	resultRPC := serverResponse{ID: req.ID, Version: req.Version}
 	resultStatus := http.StatusOK
 
-	argDef, errd := FunctionDef(cfg, log, jc, req.Method)
-	if errd != nil {
-		log.Warnf("Method %s load def error: %s", req.Method, errd)
-		resultRPC.Error = getRaw(respRPCError{Code: -32601, Message: "Method not found", Data: getRaw(errd)})
+	fd, err := s.FunctionDef(req.Method)
+	if err != nil {
+		resultRPC.Error = getRaw(respRPCError{Code: -32601, Message: "Method not found", Data: getRaw(err)})
 		resultStatus = http.StatusNotFound
 	} else {
-		// Load args
-		r.ParseForm()
-		log.Infof("Argument source: %+v", req.Params)
-		key, f404 := fetchArgs(log, argDef, req.Params, req.Method)
-		if len(f404) > 0 {
-			resultRPC.Error = getRaw(respRPCError{Code: -32602, Message: "Required parameter(s) not found", Data: getRaw(f404)})
+
+		argDef, errd := s.FunctionArgDef(fd.NspName, fd.ProName)
+		if errd != nil {
+			log.Warnf("Method %s load def error: %s", req.Method, errd)
+			resultRPC.Error = getRaw(respRPCError{Code: -32601, Message: "Method not found", Data: getRaw(errd)})
+			resultStatus = http.StatusNotFound
 		} else {
-			payload, _ := json.Marshal(key)
-			log.Debugf("Args: %s", string(payload))
-			res := FunctionResult(jc, string(payload))
-			if res.Success {
-				resultRPC.Result = res.Result
+			// Load args
+			r.ParseForm()
+			log.Infof("Argument source: %+v", req.Params)
+			key, f404 := fetchArgs(log, argDef, req.Params, fd.NspName, fd.ProName)
+			if len(f404) > 0 {
+				resultRPC.Error = getRaw(respRPCError{Code: -32602, Message: "Required parameter(s) not found", Data: getRaw(f404)})
 			} else {
-				resultRPC.Error = getRaw(respRPCError{Code: -32603, Message: "Internal Error", Data: getRaw(res.Error)})
+				payload, _ := json.Marshal(key)
+				log.Debugf("Args: %s", string(payload))
+				res := FunctionResult(s.jc, string(payload))
+				if res.Success {
+					resultRPC.Result = res.Result
+				} else {
+					resultRPC.Error = getRaw(respRPCError{Code: -32603, Message: "Internal Error", Data: getRaw(res.Error)})
+				}
 			}
 		}
 	}
@@ -307,14 +345,23 @@ func postContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w h
 
 // postgrestContextHandler serve JSON-RPC envelope
 // 404 when method not found
-func postgrestContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job, w http.ResponseWriter, r *http.Request) {
+func (s RPCServer) postgrestContextHandler(w http.ResponseWriter, r *http.Request) {
 
 	start := time.Now()
+	log := s.log
 
-	method := strings.TrimPrefix(r.URL.Path, cfg.Prefix)
+	method := strings.TrimPrefix(r.URL.Path, s.cfg.Prefix)
+	method = strings.TrimSuffix(method, ".json") // Allow use .json in url
 	log.Debugf("postgrest call for %s", method)
 
-	argDef, errd := FunctionDef(cfg, log, jc, method)
+	fd, err := s.FunctionDef(method)
+	if err != nil {
+		log.Warnf("Method %s load def error: %s", method, err)
+		http.NotFound(w, r)
+		return
+	}
+
+	argDef, errd := s.FunctionArgDef(fd.NspName, fd.ProName)
 	if errd != nil {
 		log.Warnf("Method %s load def error: %s", method, errd)
 		http.NotFound(w, r)
@@ -326,29 +373,36 @@ func postgrestContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job
 	var resultRPC interface{}
 
 	data, _ := ioutil.ReadAll(r.Body)
-	err := json.Unmarshal(data, &req)
 
-	if err != nil {
-		e := fmt.Sprintf("json parse error: %s", err)
-		log.Warn(e)
-		resultRPC = respPGTError{Message: "Cannot parse request payload", Details: getRaw(e)}
+	if len(data) == 0 {
+		resultRPC = respPGTError{Message: "Cannot parse empty request payload, use '{}'"}
 		resultStatus = http.StatusBadRequest
 	} else {
-		// Load args
-		log.Infof("Argument source: %+v", req)
-		key, f404 := fetchArgs(log, argDef, req, method)
-		if len(f404) > 0 {
-			resultRPC = respPGTError{Code: "42883", Message: "Required parameter(s) not found", Details: getRaw(strings.Join(f404, ", "))}
+
+		err = json.Unmarshal(data, &req)
+
+		if err != nil {
+			e := fmt.Sprintf("json parse error: %s", err)
+			log.Warnf("Error parse request(%s): %+v", data, e)
+			resultRPC = respPGTError{Message: "Cannot parse request payload", Details: getRaw(e)}
 			resultStatus = http.StatusBadRequest
 		} else {
-			payload, _ := json.Marshal(key)
-			log.Debugf("Args: %s", string(payload))
-			res := FunctionResult(jc, string(payload))
-			if res.Success {
-				resultRPC = res.Result
+			// Load args
+			log.Infof("Argument source: %+v", req)
+			key, f404 := fetchArgs(log, argDef, req, fd.NspName, fd.ProName)
+			if len(f404) > 0 {
+				resultRPC = respPGTError{Code: "42883", Message: "Required parameter(s) not found", Details: getRaw(strings.Join(f404, ", "))}
+				resultStatus = http.StatusBadRequest
 			} else {
-				resultRPC = respPGTError{Message: "Method call error", Details: getRaw(res.Error)}
-				resultStatus = http.StatusBadRequest // TODO: ?
+				payload, _ := json.Marshal(key)
+				log.Debugf("Args: %s", string(payload))
+				res := FunctionResult(s.jc, string(payload))
+				if res.Success {
+					resultRPC = res.Result
+				} else {
+					resultRPC = respPGTError{Message: "Method call error", Details: getRaw(res.Error)}
+					resultStatus = http.StatusBadRequest // TODO: ?
+				}
 			}
 		}
 	}
@@ -367,10 +421,10 @@ func postgrestContextHandler(cfg *AplFlags, log *logger.Log, jc chan workman.Job
 	//w.Write([]byte("\n"))
 }
 
-func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams, method string) ([]interface{}, []string) {
+func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams, nsp, proc string) ([]interface{}, []string) {
 
 	key := []interface{}{}
-	key = append(key, &method)
+	key = append(key, &nsp, &proc)
 	f404 := []string{}
 
 	for _, a := range argDef {

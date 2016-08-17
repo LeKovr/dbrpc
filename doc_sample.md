@@ -1,345 +1,171 @@
 
-# Схема public. Методы API
+# Методы API
 
-* [dbsize](#dbsize)
-* [echo](#echo)
-* [echo_arr](#echo_arr)
-* [echo_jsonb](#echo_jsonb)
-* [echo_single](#echo_single)
-* [fsm_path_ok](#fsm_path_ok)
-* [fsm_transes_ok](#fsm_transes_ok)
-* [index](#index)
-* [pg_func_arg_prefix](#pg_func_arg_prefix)
-* [pg_func_args](#pg_func_args)
-* [pg_func_args_ext](#pg_func_args_ext)
-* [pg_func_result](#pg_func_result)
-* [pg_func_result_ext](#pg_func_result_ext)
-* [pg_func_search_nsp](#pg_func_search_nsp)
-* [pg_schema_oid](#pg_schema_oid)
-* [register_comment](#register_comment)
-* [register_comment_common](#register_comment_common)
-* [test_error](#test_error)
+* [func_args](#func_args) - Описание аргументов процедуры
+* [func_result](#func_result) - Описание результата процедуры
+* [index](#index) - Список описаний процедур
 
-## dbsize
+## func_args
 
-
+Описание аргументов процедуры
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-name | text | | 
+code | text | null | Имя процедуры
+lang | text | ru | Язык документации
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-name | name | 
-owner | name | 
-size | text | 
+arg | text | Имя аргумента
+type | text | Тип аргумента
+def | text | Значение по умолчанию
+def_is_null | boolean | Значение по умолчанию задано как NULL
+anno | text | Описание
 
-## echo
+### Пример вызова
+
+```
+H=http://localhost:8081/rpc
+Q='{"code":"func_args", "lang":"ru"}'
+curl -gsd "$Q" -H "Content-type: application/json" $H/func_args | jq .
+```
+```json
+[
+  {
+    "type": "text",
+    "def_is_null": false,
+    "def": null,
+    "arg": "code",
+    "anno": "Имя процедуры"
+  },
+  {
+    "type": "text",
+    "def_is_null": false,
+    "def": "ru",
+    "arg": "lang",
+    "anno": "Язык документации"
+  }
+]
+```
 
 
+## func_result
+
+Описание результата процедуры
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
-name | text |  | 
-id | integer | 5 | 
+code | text | null | Имя процедуры
+lang | text | ru | Язык документации
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-name | text | 
-id | integer | 
+arg | text | Имя аргумента
+type | text | Тип аргумента
+anno | text | Описание
 
-## echo_arr
+### Пример вызова
 
+```
+H=http://localhost:8081/rpc
+Q='{"code":"func_args", "lang":"ru"}'
+curl -gsd "$Q" -H "Content-type: application/json" $H/func_result | jq .
+```
+```json
+[
+  {
+    "type": "text",
+    "arg": "arg",
+    "anno": "Имя аргумента"
+  },
+  {
+    "type": "text",
+    "arg": "type",
+    "anno": "Тип аргумента"
+  },
+  {
+    "type": "text",
+    "arg": "def",
+    "anno": "Значение по умолчанию"
+  },
+  {
+    "type": "boolean",
+    "arg": "def_is_null",
+    "anno": "Значение по умолчанию задано как NULL"
+  },
+  {
+    "type": "text",
+    "arg": "anno",
+    "anno": "Описание"
+  }
+]
+```
 
-
-### Аргументы
-
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-name | text[] |  | 
-id | integer | 5 | 
-
-### Результат
-
-Имя | Тип | Описание
-----|-----|---------
-name | text[] | 
-id | integer | 
-
-## echo_jsonb
-
-
-
-### Аргументы
-
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-name | text |  | 
-id | integer | 5 | 
-
-### Результат
-
-Имя | Тип | Описание
-----|-----|---------
-name | text | 
-id | integer | 
-js | jsonb | 
-
-## echo_single
-
-
-
-### Аргументы
-
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-name | text |  | 
-
-### Результат
-
-Имя | Тип | Описание
-----|-----|---------
-- | text | 
-
-## fsm_path_ok
-
-
-
-### Аргументы
-
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-path | text |  | 
-
-### Результат
-
-Имя | Тип | Описание
-----|-----|---------
-- | boolean | 
-
-## fsm_transes_ok
-
-
-
-### Аргументы
-
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-transes | text |  | 
-final_trans_id | integer |  | 
-start_trans_id | integer | 1 | 
-
-### Результат
-
-Имя | Тип | Описание
-----|-----|---------
-- | boolean | 
 
 ## index
 
-
-
-### Аргументы
-
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-nspname | text |  | 
-lang | text | ru | 
-
-### Результат
-
-Имя | Тип | Описание
-----|-----|---------
-code | text | 
-nspname | text | 
-proname | text | 
-anno | text | 
-sample | text | 
-
-## pg_func_arg_prefix
-
-
+Список описаний процедур
 
 ### Аргументы
 
 Имя | Тип | По умолчанию | Описание
 ----|-----|--------------|---------
+lang | text | ru | Язык документации
 
 ### Результат
 
 Имя | Тип | Описание
 ----|-----|---------
-- | text | 
+code | text | Имя процедуры
+nspname | name | Имя схемы хранимой функции
+proname | name | Имя хранимой функции
+anno | text | Описание
+sample | text | Пример вызова
 
-## pg_func_args
+### Пример вызова
 
-
-
-### Аргументы
-
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-nspname | text |  | 
-proname | text |  | 
-
-### Результат
-
-Имя | Тип | Описание
-----|-----|---------
-id | integer | 
-name | text | 
-type | text | 
-def | text | 
-def_is_ | boolean | 
-
-## pg_func_args_ext
-
-
-
-### Аргументы
-
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-code | text |  | 
-lang | text | ru | 
-
-### Результат
-
-Имя | Тип | Описание
-----|-----|---------
-name | text | 
-type | text | 
-def | text | 
-def_is_ | boolean | 
-anno | text | 
-
-## pg_func_result
+```
+H=http://localhost:8081/rpc
+Q='{"a_lang":"ru"}'
+curl -gsd "$Q" -H "Content-type: application/json" $H/index | jq .
+```
+```json
+[
+  {
+    "sample": "{\"code\":\"func_args\", \"lang\":\"ru\"}",
+    "proname": "func_args",
+    "nspname": "dbrpc",
+    "code": "func_args",
+    "anno": "Описание аргументов процедуры"
+  },
+  {
+    "sample": "{\"code\":\"func_args\", \"lang\":\"ru\"}",
+    "proname": "func_result",
+    "nspname": "dbrpc",
+    "code": "func_result",
+    "anno": "Описание результата процедуры"
+  },
+  {
+    "sample": "{\"a_lang\":\"ru\"}",
+    "proname": "index",
+    "nspname": "dbrpc",
+    "code": "index",
+    "anno": "Список описаний процедур"
+  }
+]
+```
 
 
+---
 
-### Аргументы
+Generated by doc_gen.sh
 
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-nspname | text |  | 
-proname | text |  | 
-
-### Результат
-
-Имя | Тип | Описание
-----|-----|---------
-name | text | 
-type | text | 
-
-## pg_func_result_ext
-
-
-
-### Аргументы
-
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-code | text |  | 
-lang | text | ru | 
-
-### Результат
-
-Имя | Тип | Описание
-----|-----|---------
-name | text | 
-type | text | 
-anno | text | 
-
-## pg_func_search_nsp
-
-
-
-### Аргументы
-
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-code | text |  | 
-
-### Результат
-
-Имя | Тип | Описание
-----|-----|---------
-- | text | 
-
-## pg_schema_oid
-
-
-
-### Аргументы
-
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-name | text |  | 
-
-### Результат
-
-Имя | Тип | Описание
-----|-----|---------
-- | oid | 
-
-## register_comment
-
-
-
-### Аргументы
-
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-lang | text |  | 
-nspname | text |  | 
-proname | text |  | 
-anno | text |  | 
-args | json |  | 
-result | json |  | 
-sample | text |  | 
-
-### Результат
-
-Имя | Тип | Описание
-----|-----|---------
-- | void | 
-
-## register_comment_common
-
-
-
-### Аргументы
-
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-lang | text |  | 
-args | json |  | 
-
-### Результат
-
-Имя | Тип | Описание
-----|-----|---------
-- | void | 
-
-## test_error
-
-
-
-### Аргументы
-
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-
-### Результат
-
-Имя | Тип | Описание
-----|-----|---------
-- | text | 
+Thu, 18 Aug 2016 00:59:43 +0300
