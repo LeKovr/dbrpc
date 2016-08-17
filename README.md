@@ -51,10 +51,11 @@ Features
 * [x] CORS support
 * [x] JSON-RPC over HTTP interface
 * [x] required args checking
+* [x] method index via /rpc/index.json
 * [ ] RPC interface
 * [ ] Cache control
 * [ ] Cache warm/bench/test with wget
-* [ ] Reset metadata cache on SIGHUP
+* [ ] Reset metadata cache on SIGHUP and via LISTEN
 * [ ] Authentication
 * [ ] Access control
 * [ ] Metrics for [Prometheus](https://prometheus.io/)
