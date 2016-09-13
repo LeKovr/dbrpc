@@ -150,8 +150,12 @@ func setUp(cfg *Config) (log *logger.Log, db *pgx.ConnPool, err error) {
 	panicIfError(err) // check Flags parse error
 
 	// Setup database
+
 	c, err := pgx.ParseURI("postgres://" + cfg.Connect)
 	panicIfError(err) // check Flags parse error
+	RuntimeParams := make(map[string]string)
+	RuntimeParams["application_name"] = "dbrpc"
+	c.RuntimeParams = RuntimeParams
 	db, err = pgx.NewConnPool(pgx.ConnPoolConfig{
 		ConnConfig:     c,
 		MaxConnections: cfg.wm.MaxWorkers,
