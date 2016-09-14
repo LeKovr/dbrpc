@@ -122,16 +122,26 @@ func indexFetcher(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool) (index *Func
 // -----------------------------------------------------------------------------
 
 func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool, key string) (data []byte, err error) {
-	var args []interface{}
 	var rows *pgx.Rows
+	var q string
+	var vals []interface{}
 
-	err = json.Unmarshal([]byte(key), &args)
-	if err != nil {
-		return
+	if strings.HasPrefix(key, "[") {
+		var args []interface{}
+		err = json.Unmarshal([]byte(key), &args)
+		if err != nil {
+			return
+		}
+		q, vals = PrepareFuncSQL(cfg, args)
+	} else {
+		var args CallDef
+		err = json.Unmarshal([]byte(key), &args)
+		if err != nil {
+			return
+		}
+		q, vals = PrepareFuncSQLmap(cfg, args)
 	}
-
-	q, vals := PrepareFuncSQL(cfg, args)
-	log.Debugf("Query: %s", q)
+	log.Debugf("Query: %s args: %+v", q, vals)
 	rows, err = db.Query(q, vals...)
 	if err != nil {
 		return
@@ -171,6 +181,42 @@ func PrepareFuncSQL(cfg *AplFlags, args []interface{}) (string, []interface{}) {
 	var q string
 	if args[0] != nil {
 		nsp := args[0].(string)
+		q = fmt.Sprintf("select * from %s.%s(%s)", nsp, proc, argIDStr)
+	} else {
+		// use search_path
+		q = fmt.Sprintf("select * from %s(%s)", proc, argIDStr)
+	}
+
+	return q, argValPrep
+}
+
+// PrepareFuncSQLmap prepares sql query with named args placeholders
+func PrepareFuncSQLmap(cfg *AplFlags, args CallDef) (string, []interface{}) {
+
+	var proc string
+	ref := args.Proc
+	if ref != nil {
+		proc = *ref
+	} else {
+		// fatal - incorrect map structure
+	}
+
+	argValPrep := make([]interface{}, len(args.Args))
+	argIDs := make([]string, len(args.Args))
+
+	i := 0
+	for k, v := range args.Args {
+		argIDs[i] = fmt.Sprintf("%s => $%d", k, i+1)
+		argValPrep[i] = v
+		i++
+	}
+
+	argIDStr := strings.Join(argIDs, ",")
+
+	var q string
+	ref = args.Name
+	if ref != nil {
+		nsp := *ref
 		q = fmt.Sprintf("select * from %s.%s(%s)", nsp, proc, argIDStr)
 	} else {
 		// use search_path

@@ -23,8 +23,7 @@ PRGPATH   ?= $(PRGBIN)
 PIDFILE   ?= $(PRGBIN).pid
 LOGFILE   ?= $(PRGBIN).log
 STAMP     ?= $$(date +%Y-%m-%d_%H:%M.%S)
-ALLARCH   ?= "linux/amd64 linux/386  darwin/386"
-# windows/amd64
+ALLARCH   ?= "linux/amd64 linux/386  darwin/386 windows/amd64"
 
 # Search .git for commit id fetch
 GIT_ROOT  ?= $$([ -d ./.git ] && echo "." || { [ -d ../.git ] && echo ".." ; } || { [ -d ../../.git ] && echo "../.." ; })
@@ -49,12 +48,13 @@ APP_ADDR=$(APP_ADDR)
 
 # Database
 
+# Search path
+DBRPC_SCHEMAS=public
+
 # Host
 DB_ADDR=localhost
 # Name
 DB_NAME=$(DB_NAME)
-# Schema
-DB_SCHEMA=$(DB_NAME)
 # User
 DB_USER=$(DB_NAME)
 # Password
@@ -71,13 +71,13 @@ up: build $(PIDFILE)
 $(PIDFILE): $(CFG)
 	@source $(CFG) && \
   DBC="$$DB_USER:$$DB_PASS@$$DB_ADDR/$$DB_NAME?sslmode=disable" ; \
-  nohup ./$(PRGPATH) --log_level debug --db_connect "$$DBC" --http_addr "$$APP_ADDR" --db_schema "$$DB_SCHEMA" >$(LOGFILE) 2>&1 &
+  nohup ./$(PRGPATH) --log_level debug --db_connect "$$DBC" --http_addr "$$APP_ADDR" --db_schema "$$DBRPC_SCHEMAS" >$(LOGFILE) 2>&1 &
 
 ## run in foreground
 run: build $(CFG)
 	@source $(CFG) && \
   DBC="$$DB_USER:$$DB_PASS@$$DB_ADDR/$$DB_NAME?sslmode=disable" ; \
-  ./$(PRGPATH) --log_level debug --db_connect "$$DBC" --http_addr "$$APP_ADDR" --db_schema "$$DB_SCHEMA"
+  ./$(PRGPATH) --log_level debug --db_connect "$$DBC" --http_addr "$$APP_ADDR" --db_schema "$$DBRPC_SCHEMAS"
 
 ## gracefull code reload
 reload: build $(PIDFILE)
@@ -102,7 +102,7 @@ build: lint vet $(PRGPATH)
 $(PRGPATH): $(SOURCES)
 	@echo "*** $@ ***"
 	@[ -d $(GIT_ROOT)/.git ] && GH=`git rev-parse HEAD` || GH=nogit ; \
-GOOS=$(OS) GOARCH=$(ARCH) go build -o $(PRGBIN) -ldflags \
+GOOS=$(OS) GOARCH=$(ARCH) go build -v -o $(PRGBIN) -ldflags \
 "-X main.Build=$(STAMP) -X main.Commit=$$GH"
 
 ## build app for all platforms
@@ -161,7 +161,8 @@ lint:
 ## run go vet
 vet:
 	@echo "*** $@ ***"
-	@for d in "$(SOURCEDIR)" ; do echo $$d && go vet $$d/*.go ; done
+#	@for d in "$(SOURCEDIR)" ; do echo $$d && go vet $$d/*.go ; done
+# does not build with go 1.7
 
 ## run psql
 psql: $(CFG)

@@ -12,10 +12,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jessevdk/go-flags"
 
+	_ "expvar"
 	"github.com/LeKovr/dbrpc/workman"
 	"github.com/LeKovr/go-base/logger"
-
-	_ "expvar"
+	lg "gopkg.in/inconshreveable/log15.v2"
 	_ "net/http/pprof"
 )
 
@@ -38,6 +38,7 @@ type AplFlags struct {
 	ArgIndexFunc string   `long:"db_index" default:"index" description:"Available functions list"`
 	Hosts        []string `long:"http_origin" description:"Allowed http origin(s)"`
 	Lang         string   `long:"lang" default:"ru" description:"Default definition language"`
+	Compact      bool     `long:"compact_get" description:"Do not pretty print json on GET request"`
 }
 
 // Config defines all of application flags
@@ -150,17 +151,21 @@ func setUp(cfg *Config) (log *logger.Log, db *pgx.ConnPool, err error) {
 	panicIfError(err) // check Flags parse error
 
 	// Setup database
+	log.Debugf("DB connection: %s", cfg.Connect)
 
 	c, err := pgx.ParseURI("postgres://" + cfg.Connect)
 	panicIfError(err) // check Flags parse error
 	RuntimeParams := make(map[string]string)
 	RuntimeParams["application_name"] = "dbrpc"
 	c.RuntimeParams = RuntimeParams
+	c.LogLevel = pgx.LogLevelDebug // LogLevelFromString
+	c.Logger = lg.New("db.log", "db")
 	db, err = pgx.NewConnPool(pgx.ConnPoolConfig{
 		ConnConfig:     c,
 		MaxConnections: cfg.wm.MaxWorkers,
 		AfterConnect: func(conn *pgx.Conn) error {
-			if cfg.apl.Schema != "public" {
+			if cfg.apl.Schema != "" {
+				log.Debugf("DB searchpath: (%s)", cfg.apl.Schema)
 				_, err = conn.Exec("set search_path = " + cfg.apl.Schema)
 			}
 			log.Debugf("Added DB connection")

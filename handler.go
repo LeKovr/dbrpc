@@ -138,9 +138,9 @@ func (s RPCServer) httpHandler() http.HandlerFunc {
 		}
 
 		if r.Method == "GET" {
-			s.getContextHandler(w, r, true)
+			s.getContextHandler(w, r, true, cfg.Compact)
 		} else if r.Method == "HEAD" {
-			s.getContextHandler(w, r, false) // Like get but without data
+			s.getContextHandler(w, r, false, false) // Like get but without data
 		} else if r.Method == "POST" && r.URL.Path == cfg.Prefix {
 			s.postContextHandler(w, r)
 		} else if r.Method == "POST" {
@@ -197,7 +197,7 @@ func (s RPCServer) FunctionDef(method string) (*FuncDef, error) {
 
 // -----------------------------------------------------------------------------
 
-func (s RPCServer) getContextHandler(w http.ResponseWriter, r *http.Request, reply bool) {
+func (s RPCServer) getContextHandler(w http.ResponseWriter, r *http.Request, reply bool, compact bool) {
 	start := time.Now()
 	log := s.log
 	method := strings.TrimPrefix(r.URL.Path, s.cfg.Prefix)
@@ -218,48 +218,49 @@ func (s RPCServer) getContextHandler(w http.ResponseWriter, r *http.Request, rep
 		return
 	}
 
-	key := []*string{&fd.NspName, &fd.ProName}
+	//key := []*string{&fd.NspName, &fd.ProName}
 	r.ParseForm()
 
 	f404 := []string{}
+	ret := CallDef{Name: &fd.NspName, Proc: &fd.ProName, Args: map[string]interface{}{}}
+
 	for _, a := range argDef {
 		v := r.Form[a.Name]
-
 		if len(v) == 0 {
 			if !a.DefIsNull && a.Default == nil {
 				f404 = append(f404, a.Name)
 			} else if a.Default != nil {
 				log.Debugf("Arg: %s use default", a.Name)
-				break // use defaults
 			}
-			key = append(key, nil) // TODO: nil does not replaced with default
 		} else if strings.HasSuffix(a.Type, "[]") {
 			// convert array into string
-			// TODO: escape ","
 			if v[0] == "{}" {
 				// empty array
-				key = append(key, &v[0])
+				ret.Args[a.Name] = &v[0]
 			} else {
-				s := "{" + strings.Join(v, ",") + "}"
-				key = append(key, &s)
+				s := "{" + strings.Join(v, ",") + "}" // TODO: escape ","
+				ret.Args[a.Name] = &s
 			}
 		} else {
-			key = append(key, &v[0])
+			ret.Args[a.Name] = &v[0]
 		}
-
-		log.Debugf("Arg: %+v (%d)", v, len(f404))
 	}
 	var result workman.Result
 	if len(f404) > 0 {
 		result = workman.Result{Success: false, Error: fmt.Sprintf("Required parameter(s) %+v not found", f404)}
 	} else {
-		payload, _ := json.Marshal(key)
+		payload, _ := json.Marshal(ret)
 		log.Debugf("Args: %s", string(payload))
 		result = FunctionResult(s.jc, string(payload))
 	}
 
 	if reply {
-		out, err := json.Marshal(result)
+		var out []byte
+		if compact {
+			out, err = json.Marshal(result)
+		} else {
+			out, err = json.MarshalIndent(result, "", "    ")
+		}
 		if err != nil {
 			log.Warnf("Marshall error: %+v", err)
 			e := workman.Result{Success: false, Error: err.Error()}
@@ -421,11 +422,10 @@ func (s RPCServer) postgrestContextHandler(w http.ResponseWriter, r *http.Reques
 	//w.Write([]byte("\n"))
 }
 
-func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams, nsp, proc string) ([]interface{}, []string) {
+func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams, nsp, proc string) (CallDef, []string) {
 
-	key := []interface{}{}
-	key = append(key, &nsp, &proc)
 	f404 := []string{}
+	ret := CallDef{Name: &nsp, Proc: &proc, Args: map[string]interface{}{}}
 
 	for _, a := range argDef {
 		v, ok := req[a.Name]
@@ -434,64 +434,35 @@ func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams, nsp, proc stri
 				f404 = append(f404, a.Name)
 			} else if a.Default != nil {
 				log.Debugf("Arg: %s use default", a.Name)
-				break // use defaults
 			}
-			key = append(key, nil) // TODO: nil does not replaced with default
 		} else if strings.HasSuffix(a.Type, "[]") {
 			// wait slice
 			s := reflect.ValueOf(v)
 			if s.Kind() != reflect.Slice {
 				// string or {string}
-				vs := v.(string)
-
-				// // convert scalar to postgres array
-				// asArray = regexp.MustCompile(`^\{.+\}$`)
-				// if !asArray.MatchString(vs) {
-				// 	vs = "{" + vs + "}"
-				// }
-				key = append(key, &vs)
+				log.Debugf("=Array from no slice: %+v", v)
+				ret.Args[a.Name] = s //&vs
 			} else {
 				// slice
-				ret := make([]string, s.Len())
+				arr := make([]string, s.Len())
 
 				for i := 0; i < s.Len(); i++ {
-					ret[i] = s.Index(i).Interface().(string)
+					arr[i] = s.Index(i).Interface().(string)
 					//	log.Printf("====== %+v", ret[i])
 				}
 				// convert array into string
 				// TODO: escape ","
-				ss := "{" + strings.Join(ret, ",") + "}"
-				key = append(key, &ss)
+				ss := "{" + strings.Join(arr, ",") + "}"
+				log.Debugf("=Array from slice: %+v", ss)
+				ret.Args[a.Name] = &ss
 			}
-		} else if a.Type == "integer" { // may be 2.001380402e+09
-			log.Debugf("Arg (int): %+v", v)
-			//	i, err := strconv.ParseInt(v.(string), 10, 64)
-			var s string
-			f, err := getFloat(v)
-			if err != nil {
-				// log.Debugf("Cannot convert to int %+v: %+v", v, err)
-				s = fmt.Sprintf("%s", v.(string)) //
-			} else {
-				s = fmt.Sprintf("%.0f", f) //v.(string)
-			}
-			key = append(key, &s)
 		} else {
-			key = append(key, &v)
+			log.Debugf("=Scalar from iface: %+v", v)
+			ret.Args[a.Name] = v
 		}
-		/*
-				} else if a.Type == "boolean" {
-				b, _ := getBool(v)
-				s := strconv.FormatBool(b) //v.(string)
-				key = append(key, &s)
-			} else {
-				log.Debugf("Arg (%s): %+v", a.Type, v)
-				s := fmt.Sprintf("%s", v) //v.(string)
-				key = append(key, &s)
-			}
-		*/
-		//log.Debugf("Arg: %+v (%d)", v, len(f404))
+
 	}
-	return key, f404
+	return ret, f404
 }
 
 func getFloat(unk interface{}) (float64, error) {

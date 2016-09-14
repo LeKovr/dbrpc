@@ -52,7 +52,8 @@ Features
 * [x] JSON-RPC over HTTP interface
 * [x] required args checking
 * [x] method index via /rpc/index.json
-* [ ] RPC interface
+* [x] [named notation](https://www.postgresql.org/docs/devel/static/sql-syntax-calling-funcs.html)
+* [ ] RPC interface (gRPC?)
 * [ ] Cache control
 * [ ] Cache warm/bench/test with wget
 * [ ] Reset metadata cache on SIGHUP and via LISTEN
@@ -68,6 +69,59 @@ Features
 * endless uses syscall.Kill which is not portable to Windows yet.
 * improve tests
 * add `--index` arg - proc name to fetch functions list (and name -> function mapping)
+* delay index load (via listen)
+* light version - without index table
+* ReadOnly function attr (for RO transactions & different db connection)/ Method with RW cached <1sec
+* Avoid escaping (\u003cbr\u003e)
+* add cron_func and cron_interval for this: `for q := range "select * from cron_func(stamp)" { select * from q(stamp) }`
+* check if index query closed correctly
+* fatal if no index data
+
+### Arrays
+
+Declaration:
+```sql
+SELECT ws.register_comment('echo_arr','тест массива','{"a_name":"массив","a_id":"число"}','{"name":"массив","id":"число"}','');
+
+CREATE OR REPLACE FUNCTION echo_arr(
+  a_name   TEXT[]
+,  a_id     INTEGER DEFAULT 5
+) RETURNS TABLE(name TEXT[], id INTEGER) LANGUAGE 'sql' AS
+$_$
+    SELECT $1, $2;
+$_$;
+```
+
+Calls:
+```
+ curl -s 'http://localhost:8081/rpc/echo_arr?a_id=107050&a_name=2&a_name=3'
+{
+    "success": true,
+    "result": [
+        {
+            "id": 107050,
+            "name": [
+                "2",
+                "3"
+            ]
+        }
+    ]
+}
+
+curl gs 'http://localhost:8081/rpc/echo_arr?a_id=107050&a_name=2,3'
+{
+    "success": true,
+    "result": [
+        {
+            "id": 107050,
+            "name": [
+                "2",
+                "3"
+            ]
+        }
+    ]
+}
+```
 
 Install
 -------

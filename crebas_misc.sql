@@ -41,6 +41,8 @@ $_$
     SELECT $1, $2, ' {"a": 2, "b": ["c", "d"]}'::jsonb;
 $_$;
 
+SELECT ws.register_comment('echo_arr','тест массива','{"a_name":"массив","a_id":"число"}','{"name:"массив","id":"число"}');
+
 CREATE OR REPLACE FUNCTION echo_arr(
   a_name   TEXT[]
 ,  a_id     INTEGER DEFAULT 5
