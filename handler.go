@@ -440,8 +440,9 @@ func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams, nsp, proc stri
 			s := reflect.ValueOf(v)
 			if s.Kind() != reflect.Slice {
 				// string or {string}
-				log.Debugf("=Array from no slice: %+v", v)
-				ret.Args[a.Name] = s //&vs
+				vs := v.(string)
+				log.Debugf("=Array from no slice: %+v", vs)
+				ret.Args[a.Name] = &vs
 			} else {
 				// slice
 				arr := make([]string, s.Len())
@@ -456,6 +457,18 @@ func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams, nsp, proc stri
 				log.Debugf("=Array from slice: %+v", ss)
 				ret.Args[a.Name] = &ss
 			}
+		} else if a.Type == "integer" { // may be 2.001380402e+09
+			log.Debugf("=Arg (int): %+v", v)
+			//	i, err := strconv.ParseInt(v.(string), 10, 64)
+			var s string
+			f, err := getFloat(v)
+			if err != nil {
+				// log.Debugf("Cannot convert to int %+v: %+v", v, err)
+				s = fmt.Sprintf("%s", v.(string)) //
+			} else {
+				s = fmt.Sprintf("%.0f", f) //v.(string)
+			}
+			ret.Args[a.Name] = &s
 		} else {
 			log.Debugf("=Scalar from iface: %+v", v)
 			ret.Args[a.Name] = v
