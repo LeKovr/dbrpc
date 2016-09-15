@@ -206,7 +206,7 @@ func PrepareFuncSQLmap(cfg *AplFlags, args CallDef) (string, []interface{}) {
 
 	i := 0
 	for k, v := range args.Args {
-		argIDs[i] = fmt.Sprintf("%s => $%d", k, i+1)
+		argIDs[i] = fmt.Sprintf("%s %s $%d", k, cfg.ArgSyntax, i+1)
 		argValPrep[i] = v
 		i++
 	}

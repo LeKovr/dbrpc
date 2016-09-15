@@ -39,6 +39,7 @@ type AplFlags struct {
 	Hosts        []string `long:"http_origin" description:"Allowed http origin(s)"`
 	Lang         string   `long:"lang" default:"ru" description:"Default definition language"`
 	Compact      bool     `long:"compact_get" description:"Do not pretty print json on GET request"`
+	ArgSyntax    string   `long:"db_arg_syntax" default:":=" description:"Default named args syntax (:= or =>)"`
 }
 
 // Config defines all of application flags
