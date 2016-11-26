@@ -132,7 +132,7 @@ go get github.com/LeKovr/dbrpc
 
 ### Download
 
-See [Latest release](https://github.com/LeKovr/dbrpc/latest)
+See [Latest release](https://github.com/LeKovr/dbrpc/releases/latest)
 
 Acknowledgements
 ----------------
