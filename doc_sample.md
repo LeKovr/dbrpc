@@ -1,9 +1,114 @@
 
 # Методы API
 
+* [cache_tick](#cache_tick) - Такт кэша
+* [cache_tick30](#cache_tick30) - Такт кэша 30 сек
+* [cache_tick5](#cache_tick5) - Такт кэша 5 сек
 * [func_args](#func_args) - Описание аргументов процедуры
 * [func_result](#func_result) - Описание результата процедуры
 * [index](#index) - Список описаний процедур
+
+## cache_tick
+
+Такт кэша
+
+### Аргументы
+
+Имя | Тип | По умолчанию | Обязателен | Описание
+----|-----|--------------|------------|---------
+a_code | text | | true | Аргумент для кэширования
+
+### Результат
+
+Имя | Тип | Описание
+----|-----|---------
+code | text | Аргумент для кэширования
+seq | bigint | Номер из последовательности
+
+### Пример вызова
+
+```
+H=http://localhost:8081/rpc
+Q='{"a_code":"test1"}'
+curl -gsd "$Q" -H "Content-type: application/json" $H/cache_tick | jq .
+```
+```json
+[
+  {
+    "seq": 1,
+    "code": "test1"
+  }
+]
+```
+
+
+## cache_tick30
+
+Такт кэша 30 сек
+
+### Аргументы
+
+Имя | Тип | По умолчанию | Обязателен | Описание
+----|-----|--------------|------------|---------
+a_code | text | | true | Аргумент для кэширования
+
+### Результат
+
+Имя | Тип | Описание
+----|-----|---------
+code | text | Аргумент для кэширования
+seq | bigint | Номер из последовательности
+
+### Пример вызова
+
+```
+H=http://localhost:8081/rpc
+Q='{"a_code":"test1"}'
+curl -gsd "$Q" -H "Content-type: application/json" $H/cache_tick30 | jq .
+```
+```json
+[
+  {
+    "seq": 1,
+    "code": "test1"
+  }
+]
+```
+
+
+## cache_tick5
+
+Такт кэша 5 сек
+
+### Аргументы
+
+Имя | Тип | По умолчанию | Обязателен | Описание
+----|-----|--------------|------------|---------
+a_code | text | | true | Аргумент для кэширования
+
+### Результат
+
+Имя | Тип | Описание
+----|-----|---------
+code | text | Аргумент для кэширования
+seq | bigint | Номер из последовательности
+
+### Пример вызова
+
+```
+H=http://localhost:8081/rpc
+Q='{"a_code":"test1"}'
+curl -gsd "$Q" -H "Content-type: application/json" $H/cache_tick5 | jq .
+```
+```json
+[
+  {
+    "seq": 2,
+    "code": "test1"
+  }
+]
+```
+
 
 ## func_args
 
@@ -11,10 +116,10 @@
 
 ### Аргументы
 
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-code | text | null | Имя процедуры
-lang | text | ru | Язык документации
+Имя | Тип | По умолчанию | Обязателен | Описание
+----|-----|--------------|------------|---------
+a_code | text | | true | Имя процедуры
+a_lang | text | ru | false | Язык документации
 
 ### Результат
 
@@ -22,31 +127,31 @@ lang | text | ru | Язык документации
 ----|-----|---------
 arg | text | Имя аргумента
 type | text | Тип аргумента
-def | text | Значение по умолчанию
-def_is_null | boolean | Значение по умолчанию задано как NULL
+required | boolean | Значение обязательно
+def_val | text | Значение по умолчанию
 anno | text | Описание
 
 ### Пример вызова
 
 ```
 H=http://localhost:8081/rpc
-Q='{"code":"func_args", "lang":"ru"}'
+Q='{"a_code":"func_args", "a_lang":"ru"}'
 curl -gsd "$Q" -H "Content-type: application/json" $H/func_args | jq .
 ```
 ```json
 [
   {
     "type": "text",
-    "def_is_null": false,
-    "def": null,
-    "arg": "code",
+    "required": true,
+    "def_val": null,
+    "arg": "a_code",
     "anno": "Имя процедуры"
   },
   {
     "type": "text",
-    "def_is_null": false,
-    "def": "ru",
-    "arg": "lang",
+    "required": false,
+    "def_val": "ru",
+    "arg": "a_lang",
     "anno": "Язык документации"
   }
 ]
@@ -59,10 +164,10 @@ curl -gsd "$Q" -H "Content-type: application/json" $H/func_args | jq .
 
 ### Аргументы
 
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-code | text | null | Имя процедуры
-lang | text | ru | Язык документации
+Имя | Тип | По умолчанию | Обязателен | Описание
+----|-----|--------------|------------|---------
+a_code | text | | true | Имя процедуры
+a_lang | text | ru | false | Язык документации
 
 ### Результат
 
@@ -76,11 +181,16 @@ anno | text | Описание
 
 ```
 H=http://localhost:8081/rpc
-Q='{"code":"func_args", "lang":"ru"}'
+Q='{"a_code":"func_args", "a_lang":"ru"}'
 curl -gsd "$Q" -H "Content-type: application/json" $H/func_result | jq .
 ```
 ```json
 [
+  {
+    "type": "TABLE",
+    "arg": null,
+    "anno": null
+  },
   {
     "type": "text",
     "arg": "arg",
@@ -92,14 +202,14 @@ curl -gsd "$Q" -H "Content-type: application/json" $H/func_result | jq .
     "anno": "Тип аргумента"
   },
   {
-    "type": "text",
-    "arg": "def",
-    "anno": "Значение по умолчанию"
+    "type": "boolean",
+    "arg": "required",
+    "anno": "Значение обязательно"
   },
   {
-    "type": "boolean",
-    "arg": "def_is_null",
-    "anno": "Значение по умолчанию задано как NULL"
+    "type": "text",
+    "arg": "def_val",
+    "anno": "Значение по умолчанию"
   },
   {
     "type": "text",
@@ -116,9 +226,9 @@ curl -gsd "$Q" -H "Content-type: application/json" $H/func_result | jq .
 
 ### Аргументы
 
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
-lang | text | ru | Язык документации
+Имя | Тип | По умолчанию | Обязателен | Описание
+----|-----|--------------|------------|---------
+a_lang | text | ru | false | Язык документации
 
 ### Результат
 
@@ -127,6 +237,8 @@ lang | text | ru | Язык документации
 code | text | Имя процедуры
 nspname | name | Имя схемы хранимой функции
 proname | name | Имя хранимой функции
+permit_code | text | Код разрешения
+max_age | integer | Время хранения в кэше(сек)
 anno | text | Описание
 sample | text | Пример вызова
 
@@ -140,23 +252,56 @@ curl -gsd "$Q" -H "Content-type: application/json" $H/index | jq .
 ```json
 [
   {
-    "sample": "{\"code\":\"func_args\", \"lang\":\"ru\"}",
+    "sample": "{\"a_code\":\"test1\"}",
+    "proname": "cache_tick",
+    "permit_code": null,
+    "nspname": "rpc",
+    "max_age": 0,
+    "code": "cache_tick",
+    "anno": "Такт кэша"
+  },
+  {
+    "sample": "{\"a_code\":\"test1\"}",
+    "proname": "cache_tick",
+    "permit_code": null,
+    "nspname": "rpc",
+    "max_age": 30,
+    "code": "cache_tick30",
+    "anno": "Такт кэша 30 сек"
+  },
+  {
+    "sample": "{\"a_code\":\"test1\"}",
+    "proname": "cache_tick",
+    "permit_code": null,
+    "nspname": "rpc",
+    "max_age": 5,
+    "code": "cache_tick5",
+    "anno": "Такт кэша 5 сек"
+  },
+  {
+    "sample": "{\"a_code\":\"func_args\", \"a_lang\":\"ru\"}",
     "proname": "func_args",
-    "nspname": "dbrpc",
+    "permit_code": null,
+    "nspname": "rpc",
+    "max_age": 0,
     "code": "func_args",
     "anno": "Описание аргументов процедуры"
   },
   {
-    "sample": "{\"code\":\"func_args\", \"lang\":\"ru\"}",
+    "sample": "{\"a_code\":\"func_args\", \"a_lang\":\"ru\"}",
     "proname": "func_result",
-    "nspname": "dbrpc",
+    "permit_code": null,
+    "nspname": "rpc",
+    "max_age": 0,
     "code": "func_result",
     "anno": "Описание результата процедуры"
   },
   {
     "sample": "{\"a_lang\":\"ru\"}",
     "proname": "index",
-    "nspname": "dbrpc",
+    "permit_code": null,
+    "nspname": "rpc",
+    "max_age": 0,
     "code": "index",
     "anno": "Список описаний процедур"
   }
@@ -168,4 +313,4 @@ curl -gsd "$Q" -H "Content-type: application/json" $H/index | jq .
 
 Generated by doc_gen.sh
 
-Thu, 18 Aug 2016 00:59:43 +0300
+Thu, 29 Dec 2016 14:59:07 +0300

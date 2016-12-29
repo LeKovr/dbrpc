@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"time"
 
 	"gopkg.in/jackc/pgx.v2"
 
@@ -100,10 +101,11 @@ func Handlers(cfg *Config, log *logger.Log, db *pgx.ConnPool) (*mux.Router, *wor
 	fm, err := indexFetcher(&cfg.apl, log, db)
 
 	srv := RPCServer{
-		cfg:   &cfg.apl,
-		log:   log,
-		jc:    wm.JobQueue,
-		funcs: fm,
+		cfg:     &cfg.apl,
+		log:     log,
+		jc:      wm.JobQueue,
+		funcs:   fm,
+		started: int(time.Now().Unix()),
 	}
 
 	r := mux.NewRouter()

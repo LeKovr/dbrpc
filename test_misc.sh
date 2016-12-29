@@ -26,11 +26,11 @@ set -eu
 HOST=http://localhost:8081/rpc
 
 # NOTE: real GET queries comes without '&name=' suffix
-AP=""
+[[ "$AP" ]] || AP=""
 
 Q=$(cat <<EOF
 index
-index?lang=ru
+index?${AP}lang=ru
 func_args?${AP}code=index
 func_args?${AP}code=func_args
 func_args?${AP}code=func_result
@@ -99,7 +99,8 @@ call() {
       echo $s
       [[ ${s#Content-Type: text/plain} != "$s" ]] && nojson=1
     elif [[ "$s" ]] ; then
-      pre && prej &&  echo "$s" | jq '.'
+      pre && prej &&  echo "$s"
+### | jq '.'
     #    [[ "$s" ]] &&  echo "$s"
     fi
     echo -n ""

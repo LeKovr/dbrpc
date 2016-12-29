@@ -77,9 +77,10 @@ func dbFetcher(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool) groupcache.Gett
 
 // FuncDef holds function definition
 type FuncDef struct {
-	NspName string // function namespace
-	ProName string // function name
-	// ToDo: cache, permission etc
+	NspName string  // function namespace
+	ProName string  // function name
+	Permit  *string // permit code
+	MaxAge  int     // cache max age
 }
 
 // FuncMap holds map of function definitions
@@ -90,7 +91,7 @@ type FuncMap map[string]FuncDef
 func indexFetcher(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool) (index *FuncMap, err error) {
 	var rows *pgx.Rows
 
-	q := fmt.Sprintf("select code, nspname, proname from %s()", cfg.ArgIndexFunc)
+	q := fmt.Sprintf("select code, nspname, proname, permit_code, max_age from %s()", cfg.ArgIndexFunc)
 	log.Debugf("Query: %s", q)
 
 	rows, err = db.Query(q)
@@ -102,7 +103,7 @@ func indexFetcher(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool) (index *Func
 	for rows.Next() {
 		var fmr FuncDef
 		var code string
-		err = rows.Scan(&code, &fmr.NspName, &fmr.ProName) // ToDo: cache, permission etc
+		err = rows.Scan(&code, &fmr.NspName, &fmr.ProName, &fmr.Permit, &fmr.MaxAge)
 		if err != nil {
 			log.Warnf("Value fetch error: %s", err.Error())
 			return

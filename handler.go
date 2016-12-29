@@ -19,11 +19,11 @@ import (
 
 // ArgDef holds function argument attributes
 type ArgDef struct {
-	ID        int32   `json:"id"`
-	Name      string  `json:"arg"`
-	Type      string  `json:"type"`
-	Default   *string `json:"def"`
-	DefIsNull bool    `json:"def_is_null"`
+	ID       int32   `json:"id"`
+	Name     string  `json:"arg"`
+	Type     string  `json:"type"`
+	Default  *string `json:"def_val"`
+	Required bool    `json:"required"`
 }
 
 // FuncArgDef holds slice of function argument attributes
@@ -31,10 +31,11 @@ type FuncArgDef []ArgDef
 
 // RPCServer holds server attributes
 type RPCServer struct {
-	cfg   *AplFlags
-	log   *logger.Log
-	jc    chan workman.Job
-	funcs *FuncMap
+	cfg     *AplFlags
+	log     *logger.Log
+	jc      chan workman.Job
+	funcs   *FuncMap
+	started int
 }
 
 // -----------------------------------------------------------------------------
@@ -174,6 +175,24 @@ func getRaw(data interface{}) *json.RawMessage {
 
 // -----------------------------------------------------------------------------
 
+// Age calculates age tag for caching
+func (s RPCServer) Age(max int) int {
+
+	fromStart := int(time.Now().Unix()) - s.started
+	var ret int
+	if max < 0 {
+		ret = fromStart // 1sec cache
+	} else if max == 0 {
+		ret = 0 // single call per runtime
+	} else {
+		ret = fromStart / max // will change every max sec
+	}
+	s.log.Infof("Alive for %d, with max age %d got key %d", fromStart, max, ret)
+	return ret
+}
+
+// -----------------------------------------------------------------------------
+
 func originAllowed(origins []string, origin string) bool {
 	if len(origins) > 0 { // lookup if host is allowed
 		for _, h := range origins {
@@ -184,6 +203,8 @@ func originAllowed(origins []string, origin string) bool {
 	}
 	return false
 }
+
+// -----------------------------------------------------------------------------
 
 // FunctionDef returns function attributes from index() method
 func (s RPCServer) FunctionDef(method string) (*FuncDef, error) {
@@ -222,12 +243,12 @@ func (s RPCServer) getContextHandler(w http.ResponseWriter, r *http.Request, rep
 	r.ParseForm()
 
 	f404 := []string{}
-	ret := CallDef{Name: &fd.NspName, Proc: &fd.ProName, Args: map[string]interface{}{}}
+	ret := CallDef{Age: s.Age(fd.MaxAge), Name: &fd.NspName, Proc: &fd.ProName, Args: map[string]interface{}{}}
 
 	for _, a := range argDef {
 		v := r.Form[a.Name]
 		if len(v) == 0 {
-			if !a.DefIsNull && a.Default == nil {
+			if a.Required && a.Default == nil {
 				f404 = append(f404, a.Name)
 			} else if a.Default != nil {
 				log.Debugf("Arg: %s use default", a.Name)
@@ -311,7 +332,7 @@ func (s RPCServer) postContextHandler(w http.ResponseWriter, r *http.Request) {
 			// Load args
 			r.ParseForm()
 			log.Infof("Argument source: %+v", req.Params)
-			key, f404 := fetchArgs(log, argDef, req.Params, fd.NspName, fd.ProName)
+			key, f404 := fetchArgs(log, argDef, req.Params, fd.NspName, fd.ProName, s.Age(fd.MaxAge))
 			if len(f404) > 0 {
 				resultRPC.Error = getRaw(respRPCError{Code: -32602, Message: "Required parameter(s) not found", Data: getRaw(f404)})
 			} else {
@@ -390,7 +411,7 @@ func (s RPCServer) postgrestContextHandler(w http.ResponseWriter, r *http.Reques
 		} else {
 			// Load args
 			log.Infof("Argument source: %+v", req)
-			key, f404 := fetchArgs(log, argDef, req, fd.NspName, fd.ProName)
+			key, f404 := fetchArgs(log, argDef, req, fd.NspName, fd.ProName, s.Age(fd.MaxAge))
 			if len(f404) > 0 {
 				resultRPC = respPGTError{Code: "42883", Message: "Required parameter(s) not found", Details: getRaw(strings.Join(f404, ", "))}
 				resultStatus = http.StatusBadRequest
@@ -422,15 +443,15 @@ func (s RPCServer) postgrestContextHandler(w http.ResponseWriter, r *http.Reques
 	//w.Write([]byte("\n"))
 }
 
-func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams, nsp, proc string) (CallDef, []string) {
+func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams, nsp, proc string, age int) (CallDef, []string) {
 
 	f404 := []string{}
-	ret := CallDef{Name: &nsp, Proc: &proc, Args: map[string]interface{}{}}
+	ret := CallDef{Age: age, Name: &nsp, Proc: &proc, Args: map[string]interface{}{}}
 
 	for _, a := range argDef {
 		v, ok := req[a.Name]
 		if !ok {
-			if !a.DefIsNull && a.Default == nil {
+			if a.Required && a.Default == nil {
 				f404 = append(f404, a.Name)
 			} else if a.Default != nil {
 				log.Debugf("Arg: %s use default", a.Name)

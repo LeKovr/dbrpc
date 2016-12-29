@@ -5,7 +5,8 @@
 
 /* ------------------------------------------------------------------------- */
 
-CREATE OR REPLACE FUNCTION pg_func_args(a_nspname TEXT, a_proname TEXT) RETURNS TABLE(arg TEXT, type TEXT, id INT, def TEXT, def_is_null BOOL) STABLE LANGUAGE 'plpgsql' AS
+CREATE OR REPLACE FUNCTION pg_func_args(a_nspname TEXT, a_proname TEXT) 
+  RETURNS TABLE(arg TEXT, type TEXT, id INT, required BOOL, def_val TEXT) STABLE LANGUAGE 'plpgsql' AS
 $_$
   -- a_code:  название функции
   DECLARE
@@ -16,7 +17,7 @@ $_$
     v_arg        TEXT;
     v_type       TEXT;
     v_default    TEXT;
-    v_def_is_null BOOL;
+    v_required   BOOL;
   BEGIN
     SELECT INTO v_args
       pg_get_function_arguments(p.oid)
@@ -51,23 +52,23 @@ $_$
         RAISE EXCEPTION 'No required arg name for % arg id %', a_proname, v_i;
       END IF;
 
-      v_def_is_null := FALSE;
+      v_required := FALSE;
       IF split_part(v_def, ' ', 4) = 'DEFAULT' THEN
         v_default := substr(v_def, strpos(v_def, ' DEFAULT ') + 9);
         v_default := regexp_replace(v_default, '::[^:]+$', '');
         IF v_default = 'NULL' THEN
           v_default := NULL;
-          v_def_is_null := TRUE;
         ELSE
           v_default := btrim(v_default, chr(39)); -- '
         END IF;
       ELSE
         v_default := NULL;
+        v_required := TRUE;
       END IF;
-      v_arg  := regexp_replace(split_part(v_def, ' ', 2), '^' || pg_func_arg_prefix(), '');
+      v_arg  := regexp_replace(split_part(v_def, ' ', 2), '^' || rpc.pg_func_arg_prefix(), '');
       v_type := split_part(v_def, ' ', 3);
-      RAISE DEBUG '   column %: name=%, type=%, def=%, null=%', v_i, v_arg, v_type, v_default, v_def_is_null;
-        RETURN QUERY SELECT v_arg, v_type, v_i, v_default, v_def_is_null;
+      RAISE DEBUG '   column %: name=%, type=%, req=%, def=%', v_i, v_arg, v_type, v_required, v_default;
+        RETURN QUERY SELECT v_arg, v_type, v_i, v_required, v_default;
     END LOOP;
     RETURN;
   END;
@@ -103,7 +104,7 @@ $_$
         v_ret := regexp_replace(v_ret,'(TABLE\()(.+)\)',E'\\2','i');
         v_defs := regexp_split_to_array(v_ret, E',\\s+');
         FOR v_i IN 1 .. pg_catalog.array_upper(v_defs, 1) LOOP
-            RETURN QUERY SELECT split_part(v_defs[v_i], ' ', 1),split_part(v_defs[v_i], ' ', 2);
+            RETURN QUERY SELECT split_part(v_defs[v_i], ' ', 1), split_part(v_defs[v_i], ' ', 2);
         END LOOP;
     ELSE
        RETURN QUERY SELECT NULL::TEXT,'SINGLE'::TEXT;

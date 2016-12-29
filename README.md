@@ -53,13 +53,13 @@ Features
 * [x] required args checking
 * [x] method index via /rpc/index.json
 * [x] [named notation](https://www.postgresql.org/docs/devel/static/sql-syntax-calling-funcs.html)
-* [ ] RPC interface (gRPC?)
-* [ ] Cache control
-* [ ] Cache warm/bench/test with wget
-* [ ] Reset metadata cache on SIGHUP and via LISTEN
+* [x] Cache control
 * [ ] Authentication
 * [ ] Access control
-* [ ] Metrics for [Prometheus](https://prometheus.io/)
+* [ ] RPC interface (gRPC?)
+* [ ] Cache warm/bench/test with wget
+* [ ] Reset metadata cache on SIGHUP and via LISTEN
+* [ ] Metrics for [Prometheus](https://prometheus.io/) via expvar
 * [ ] Integrated templates
 * [ ] Swagger & human autodoc
 * [ ] i18n

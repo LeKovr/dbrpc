@@ -8,6 +8,8 @@ PRG       ?= $(shell basename $$PWD)
 CFG       ?= .config
 SOURCES   ?= *.go */*.go
 SOURCEDIR ?= ". workman"
+SQLSOURCE ?= sql
+SQLMASK   ?= [1-8]?_*.sql
 
 # Runtime data
 DB_NAME   ?= dbrpc
@@ -117,19 +119,24 @@ for a in "$(ALLARCH)" ; do \
   "-X main.Build=$(STAMP) -X main.Commit=$$GH" ; \
 done
 
-## create database schema dbrpc with used objects
+
+## create database schema rpc with used objects
 db: $(CFG)
 	@source $(CFG) && \
   DBC="$$DB_USER:$$DB_PASS@$$DB_ADDR/$$DB_NAME?sslmode=disable" ; \
-  cmd() { echo 'BEGIN; \\ \set ON_ERROR_STOP 1' && \
-  for f in sql/??_*.sql; do echo '\i '$$f; done && \
+  cmd() { echo -e 'BEGIN;\n\set ON_ERROR_STOP 1\n\set SCH rpc\nSET SEARCH_PATH = :SCH, public;' && \
+  for f in $(SQLSOURCE)/$(SQLMASK); do echo '\i '$$f; done && \
   echo 'COMMIT;' ; } && cmd | psql -d postgres://$$DBC 
 
-## drop database schema dbrpc
-clean-db: $(CFG)
+## compile stored functions
+db-make: SQLMASK = 5?_*.sql
+db-make: db
+
+## drop database schema rpc
+db-clean: $(CFG)
 	@source $(CFG) && \
   DBC="$$DB_USER:$$DB_PASS@$$DB_ADDR/$$DB_NAME?sslmode=disable" ; \
-  echo "DROP SCHEMA IF EXISTS dbrpc CASCADE;" | psql -d postgres://$$DBC 
+  echo "DROP SCHEMA IF EXISTS rpc CASCADE;" | psql -d postgres://$$DBC 
 
 ## create disro files
 dist: clean buildall

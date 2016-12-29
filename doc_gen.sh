@@ -7,13 +7,10 @@
 #
 # Use:
 # -- local docs
-# bash doc_gen.sh | sed -e 's|null||g'  > doc_sample.md
+# bash doc_gen.sh  > doc_sample.md
 #
 # -- local docs with query echo
-# DEBUG=1 bash doc_gen.sh | sed -e 's|null||g'  > doc_sample.md
-#
-# -- update iac docs
-# APP_SITE=demo.iac.it.tender.pro bash doc_gen.sh | sed -e 's|null||g' > API_upd.md
+# DEBUG=1 bash doc_gen.sh  > doc_sample.md
 #
 # TODO:
 # * [ ] Если в описании результата имя поля = '-', заменять на имя функции
@@ -28,8 +25,8 @@ H=http://$APP_SITE
 HOST=$H/$RPC_URL
 
 # prefix added to argument names
-#AP="a_"
-AP=""
+AP="a_"
+#AP=""
 
 toc() {
   local mtd=$1
@@ -54,8 +51,8 @@ $anno
 
 ### Аргументы
 
-Имя | Тип | По умолчанию | Описание
-----|-----|--------------|---------
+Имя | Тип | По умолчанию | Обязателен | Описание
+----|-----|--------------|------------|---------
 EOF
   local hdr
   local cmd="curl -gs $HOST/func_args?${AP}code=$mtd"
@@ -63,7 +60,7 @@ EOF
   [[ $DEBUG ]] && echo $cmd >&2 && echo $data >&2
   while read a ; do
     echo $a
-  done < <(echo $data | jq -r '.result | .[] | " \(.arg) | \(.type) | \(.["def"]) | \(.anno)"')
+  done < <(echo $data | jq -r '.result | .[] | " \(.arg) | \(.type) | \(.["def_val"] //= "" | .["def_val"]) | \(.["required"]) | \(.anno)"')
 cat <<EOF
 
 ### Результат
@@ -77,7 +74,7 @@ EOF
   [[ $DEBUG ]] && echo $cmd >&2 && echo $data >&2
   while read a ; do
     echo $a
-  done < <(echo $data | jq -r '.result | .[] | " \(.arg) | \(.type) | \(.anno) "')
+  done < <(echo $data | jq -r '.result | .[] | select(.arg != null) | " \(.arg) | \(.type) | \(.anno) "')
 
   local result
   if [[ "$exam" != "null" ]] ; then
