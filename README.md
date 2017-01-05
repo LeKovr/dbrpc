@@ -14,7 +14,7 @@ dbrpc
 
 This service
 
-* gets http request
+* gets http request (GET or POST)
     ```
     http://hostname/api/function?arg1=val1&arg2=val2
     ```
@@ -24,7 +24,7 @@ This service
     ```
 * calls sql
     ```
-    select * from function(val1, val2)
+    select * from function(arg1 := val1, arg2 := val2)
     ```
 * and returns query result as json:
     ```
@@ -51,9 +51,11 @@ Features
 * [x] CORS support
 * [x] JSON-RPC over HTTP interface
 * [x] required args checking
-* [x] method index via /rpc/index.json
+* [x] method index via /rpc/index[.json]
 * [x] [named notation](https://www.postgresql.org/docs/devel/static/sql-syntax-calling-funcs.html)
-* [x] Cache control
+* [x] cache expiration via max_age function attribute
+* [x] JWT result encoding for configured functions
+* [x] JWT header validation & func args substitution
 * [ ] Authentication
 * [ ] Access control
 * [ ] RPC interface (gRPC?)

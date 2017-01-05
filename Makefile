@@ -79,7 +79,8 @@ $(PIDFILE): $(CFG)
 run: build $(CFG)
 	@source $(CFG) && \
   DBC="$$DB_USER:$$DB_PASS@$$DB_ADDR/$$DB_NAME?sslmode=disable" ; \
-  ./$(PRGPATH) --log_level debug --db_connect "$$DBC" --http_addr "$$APP_ADDR" --db_schema "$$DBRPC_SCHEMAS"
+  ./$(PRGPATH) --log_level debug --db_connect "$$DBC" --http_addr "$$APP_ADDR" --db_schema "$$DBRPC_SCHEMAS" \
+  --jwt_key 123 --db_jwt_func login --db_jwt_func api_open --db_jwt_func api_tele_profile --db_jwt_func api_tele_profile_set
 
 ## gracefull code reload
 reload: build $(PIDFILE)
@@ -129,7 +130,7 @@ db: $(CFG)
   echo 'COMMIT;' ; } && cmd | psql -d postgres://$$DBC 
 
 ## compile stored functions
-db-make: SQLMASK = 5?_*.sql
+db-make: SQLMASK = [56]?_*.sql
 db-make: db
 
 ## drop database schema rpc

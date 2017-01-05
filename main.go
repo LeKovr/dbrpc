@@ -14,6 +14,7 @@ import (
 	"github.com/jessevdk/go-flags"
 
 	_ "expvar"
+	"github.com/LeKovr/dbrpc/jwtutil"
 	"github.com/LeKovr/dbrpc/workman"
 	"github.com/LeKovr/go-base/logger"
 	lg "gopkg.in/inconshreveable/log15.v2"
@@ -41,6 +42,8 @@ type AplFlags struct {
 	Lang         string   `long:"lang" default:"ru" description:"Default definition language"`
 	Compact      bool     `long:"compact_get" description:"Do not pretty print json on GET request"`
 	ArgSyntax    string   `long:"db_arg_syntax" default:":=" description:"Default named args syntax (:= or =>)"`
+	JWTFuncs     []string `long:"db_jwt_func" description:"Function with JWT encoded result"`
+	PermitFunc   string   `long:"db_permit_func" description:"Function to call for permit checking"`
 }
 
 // Config defines all of application flags
@@ -49,6 +52,7 @@ type Config struct {
 	apl AplFlags
 	log logger.Flags
 	wm  workman.Flags
+	JWT jwtutil.Flags `group:"JWT Options"`
 }
 
 // -----------------------------------------------------------------------------
@@ -99,12 +103,14 @@ func Handlers(cfg *Config, log *logger.Log, db *pgx.ConnPool) (*mux.Router, *wor
 	panicIfError(err)
 
 	fm, err := indexFetcher(&cfg.apl, log, db)
+	jwt, err := jwtutil.New(log, jwtutil.Config(&cfg.JWT))
 
 	srv := RPCServer{
 		cfg:     &cfg.apl,
 		log:     log,
 		jc:      wm.JobQueue,
 		funcs:   fm,
+		JWT:     jwt,
 		started: int(time.Now().Unix()),
 	}
 
@@ -129,6 +135,9 @@ func makeConfig(cfg *Config) *flags.Parser {
 
 	_, err = p.AddGroup("WorkerManager Options", "", &cfg.wm)
 	panicIfError(err) // check Flags parse error
+
+	//	_, err = p.AddGroup("JWT Options", "", &cfg.JWT)
+	//	panicIfError(err) // check Flags parse error
 	return p
 }
 

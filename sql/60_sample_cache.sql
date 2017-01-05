@@ -1,3 +1,8 @@
+
+-- seq to check cache reset
+CREATE SEQUENCE IF NOT EXISTS cache_tick_seq;
+
+
 CREATE OR REPLACE FUNCTION cache_tick(a_code TEXT) RETURNS TABLE(code TEXT, seq BIGINT) STABLE LANGUAGE 'sql' AS
 $_$
   SELECT $1, nextval('rpc.cache_tick_seq')

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LeKovr/dbrpc/jwtutil"
 	"github.com/LeKovr/dbrpc/workman"
 	"github.com/LeKovr/go-base/logger"
 )
@@ -36,6 +37,7 @@ type RPCServer struct {
 	jc      chan workman.Job
 	funcs   *FuncMap
 	started int
+	JWT     *jwtutil.App
 }
 
 // -----------------------------------------------------------------------------
@@ -120,12 +122,12 @@ func (s RPCServer) httpHandler() http.HandlerFunc {
 		log := s.log
 		cfg := s.cfg
 		defer r.Body.Close()
-		log.Debugf("Request method: %s", r.Method)
+		log.Debugf("Request method: %s %s", r.Method, r.RequestURI)
 
 		if origin := r.Header.Get("Origin"); origin != "" {
 
 			log.Debugf("Lookup origin %s in %+v", origin, cfg.Hosts)
-			if !originAllowed(cfg.Hosts, origin) {
+			if !stringExists(cfg.Hosts, origin, "*") {
 				log.Warningf("Unregistered request source: %s", origin)
 				http.Error(w, "Origin not registered", http.StatusForbidden)
 				return
@@ -137,15 +139,27 @@ func (s RPCServer) httpHandler() http.HandlerFunc {
 			w.Header().Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 
 		}
-
+		var session *jwtutil.Session
+		if auth := r.Header.Get("Authorization"); auth != "" {
+			// log.Debugf("Lookup auth from %s", auth)
+			authData := strings.TrimPrefix(auth, "Bearer ") // todo: error if eq
+			se, err := s.JWT.Parse(authData)
+			if err != nil {
+				log.Warningf("Auth parse error: %s", err)
+				http.Error(w, "Auth error", http.StatusForbidden)
+				return
+			}
+			log.Debugf("Lookup auth got %v", se)
+			session = se
+		}
 		if r.Method == "GET" {
-			s.getContextHandler(w, r, true, cfg.Compact)
+			s.getContextHandler(w, r, session, true, cfg.Compact)
 		} else if r.Method == "HEAD" {
-			s.getContextHandler(w, r, false, false) // Like get but without data
+			s.getContextHandler(w, r, session, false, false) // Like get but without data
 		} else if r.Method == "POST" && r.URL.Path == cfg.Prefix {
-			s.postContextHandler(w, r)
+			s.postContextHandler(w, r, session)
 		} else if r.Method == "POST" {
-			s.postgrestContextHandler(w, r)
+			s.postgrestContextHandler(w, r, session)
 		} else if r.Method == "OPTIONS" {
 			w.Header().Add("Content-Type", "text/plain; charset=UTF-8")
 			w.WriteHeader(http.StatusNoContent)
@@ -193,10 +207,11 @@ func (s RPCServer) Age(max int) int {
 
 // -----------------------------------------------------------------------------
 
-func originAllowed(origins []string, origin string) bool {
-	if len(origins) > 0 { // lookup if host is allowed
-		for _, h := range origins {
-			if h == "*" || origin == h {
+// Check if str or any exists in strings slice
+func stringExists(strings []string, str string, any string) bool {
+	if len(strings) > 0 { // lookup if host is allowed
+		for _, s := range strings {
+			if str == s || (any != "" && s == any) {
 				return true
 			}
 		}
@@ -218,7 +233,7 @@ func (s RPCServer) FunctionDef(method string) (*FuncDef, error) {
 
 // -----------------------------------------------------------------------------
 
-func (s RPCServer) getContextHandler(w http.ResponseWriter, r *http.Request, reply bool, compact bool) {
+func (s RPCServer) getContextHandler(w http.ResponseWriter, r *http.Request, session *jwtutil.Session, reply bool, compact bool) {
 	start := time.Now()
 	log := s.log
 	method := strings.TrimPrefix(r.URL.Path, s.cfg.Prefix)
@@ -238,15 +253,30 @@ func (s RPCServer) getContextHandler(w http.ResponseWriter, r *http.Request, rep
 		http.NotFound(w, r)
 		return
 	}
+	needJWT := stringExists(s.cfg.JWTFuncs, method, "")
+	if needJWT {
+		log.Infof("Method %s uses JWT and GET does not allowed", method)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
 
-	//key := []*string{&fd.NspName, &fd.ProName}
 	r.ParseForm()
 
 	f404 := []string{}
 	ret := CallDef{Age: s.Age(fd.MaxAge), Name: &fd.NspName, Proc: &fd.ProName, Args: map[string]interface{}{}}
 
 	for _, a := range argDef {
-		v := r.Form[a.Name]
+		var v []string
+		if strings.HasPrefix(a.Name, "_") {
+			// session arg
+			if session != nil {
+				if v1, ok := (*session)[strings.TrimPrefix(a.Name, "_")]; ok {
+					v = append(v, v1.(string))
+				}
+			}
+		} else {
+			v = r.Form[a.Name]
+		}
 		if len(v) == 0 {
 			if a.Required && a.Default == nil {
 				f404 = append(f404, a.Name)
@@ -259,8 +289,8 @@ func (s RPCServer) getContextHandler(w http.ResponseWriter, r *http.Request, rep
 				// empty array
 				ret.Args[a.Name] = &v[0]
 			} else {
-				s := "{" + strings.Join(v, ",") + "}" // TODO: escape ","
-				ret.Args[a.Name] = &s
+				str := "{" + strings.Join(v, ",") + "}" // TODO: escape ","
+				ret.Args[a.Name] = &str
 			}
 		} else {
 			ret.Args[a.Name] = &v[0]
@@ -299,7 +329,7 @@ func (s RPCServer) getContextHandler(w http.ResponseWriter, r *http.Request, rep
 // -----------------------------------------------------------------------------
 
 // postContextHandler serve JSON-RPC envelope
-func (s RPCServer) postContextHandler(w http.ResponseWriter, r *http.Request) {
+func (s RPCServer) postContextHandler(w http.ResponseWriter, r *http.Request, session *jwtutil.Session) {
 
 	start := time.Now()
 	log := s.log
@@ -332,7 +362,7 @@ func (s RPCServer) postContextHandler(w http.ResponseWriter, r *http.Request) {
 			// Load args
 			r.ParseForm()
 			log.Infof("Argument source: %+v", req.Params)
-			key, f404 := fetchArgs(log, argDef, req.Params, fd.NspName, fd.ProName, s.Age(fd.MaxAge))
+			key, f404 := fetchArgs(log, argDef, req.Params, fd.NspName, fd.ProName, s.Age(fd.MaxAge), session)
 			if len(f404) > 0 {
 				resultRPC.Error = getRaw(respRPCError{Code: -32602, Message: "Required parameter(s) not found", Data: getRaw(f404)})
 			} else {
@@ -340,7 +370,12 @@ func (s RPCServer) postContextHandler(w http.ResponseWriter, r *http.Request) {
 				log.Debugf("Args: %s", string(payload))
 				res := FunctionResult(s.jc, string(payload))
 				if res.Success {
-					resultRPC.Result = res.Result
+					needJWT := stringExists(s.cfg.JWTFuncs, req.Method, "")
+					if needJWT {
+						resultRPC.Result, _ = s.JWT.Create(res.Result)
+					} else {
+						resultRPC.Result = res.Result
+					}
 				} else {
 					resultRPC.Error = getRaw(respRPCError{Code: -32603, Message: "Internal Error", Data: getRaw(res.Error)})
 				}
@@ -367,7 +402,7 @@ func (s RPCServer) postContextHandler(w http.ResponseWriter, r *http.Request) {
 
 // postgrestContextHandler serve JSON-RPC envelope
 // 404 when method not found
-func (s RPCServer) postgrestContextHandler(w http.ResponseWriter, r *http.Request) {
+func (s RPCServer) postgrestContextHandler(w http.ResponseWriter, r *http.Request, session *jwtutil.Session) {
 
 	start := time.Now()
 	log := s.log
@@ -410,8 +445,8 @@ func (s RPCServer) postgrestContextHandler(w http.ResponseWriter, r *http.Reques
 			resultStatus = http.StatusBadRequest
 		} else {
 			// Load args
-			log.Infof("Argument source: %+v", req)
-			key, f404 := fetchArgs(log, argDef, req, fd.NspName, fd.ProName, s.Age(fd.MaxAge))
+			log.Infof("Argument source: %+v (session: %+v)", req, session)
+			key, f404 := fetchArgs(log, argDef, req, fd.NspName, fd.ProName, s.Age(fd.MaxAge), session)
 			if len(f404) > 0 {
 				resultRPC = respPGTError{Code: "42883", Message: "Required parameter(s) not found", Details: getRaw(strings.Join(f404, ", "))}
 				resultStatus = http.StatusBadRequest
@@ -420,7 +455,13 @@ func (s RPCServer) postgrestContextHandler(w http.ResponseWriter, r *http.Reques
 				log.Debugf("Args: %s", string(payload))
 				res := FunctionResult(s.jc, string(payload))
 				if res.Success {
-					resultRPC = res.Result
+					needJWT := stringExists(s.cfg.JWTFuncs, method, "")
+					if needJWT {
+						resultRPC, _ = s.JWT.Create(res.Result)
+					} else {
+						resultRPC = res.Result
+					}
+
 				} else {
 					resultRPC = respPGTError{Message: "Method call error", Details: getRaw(res.Error)}
 					resultStatus = http.StatusBadRequest // TODO: ?
@@ -443,13 +484,27 @@ func (s RPCServer) postgrestContextHandler(w http.ResponseWriter, r *http.Reques
 	//w.Write([]byte("\n"))
 }
 
-func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams, nsp, proc string, age int) (CallDef, []string) {
+func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams, nsp, proc string, age int, session *jwtutil.Session) (CallDef, []string) {
 
 	f404 := []string{}
 	ret := CallDef{Age: age, Name: &nsp, Proc: &proc, Args: map[string]interface{}{}}
-
 	for _, a := range argDef {
-		v, ok := req[a.Name]
+
+		var v interface{}
+		var ok bool
+
+		if strings.HasPrefix(a.Name, "_") {
+			// get from session
+			if session != nil {
+				v, ok = (*session)[strings.TrimPrefix(a.Name, "_")]
+			} else {
+				ok = false
+			}
+		} else {
+			// get from request
+			v, ok = req[a.Name]
+		}
+
 		if !ok {
 			if a.Required && a.Default == nil {
 				f404 = append(f404, a.Name)

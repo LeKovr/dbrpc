@@ -191,6 +191,8 @@ func PrepareFuncSQL(cfg *AplFlags, args []interface{}) (string, []interface{}) {
 	return q, argValPrep
 }
 
+// -----------------------------------------------------------------------------
+
 // PrepareFuncSQLmap prepares sql query with named args placeholders
 func PrepareFuncSQLmap(cfg *AplFlags, args CallDef) (string, []interface{}) {
 
