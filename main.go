@@ -42,7 +42,8 @@ type AplFlags struct {
 	Lang         string   `long:"lang" default:"ru" description:"Default definition language"`
 	Compact      bool     `long:"compact_get" description:"Do not pretty print json on GET request"`
 	ArgSyntax    string   `long:"db_arg_syntax" default:":=" description:"Default named args syntax (:= or =>)"`
-	JWTFuncs     []string `long:"db_jwt_func" description:"Function with JWT encoded result"`
+	JWTSuffix    string   `long:"jwt_suffix" default:":jwt" description:"Function name suffix for JWT encoded result"`
+	JWTArgPrefix string   `long:"jwt_arg_prefix" default:"_" description:"Function arg name prefix for getting from JWT data"`
 	PermitFunc   string   `long:"db_permit_func" description:"Function to call for permit checking"`
 }
 

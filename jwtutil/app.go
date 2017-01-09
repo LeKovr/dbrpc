@@ -88,7 +88,7 @@ type SessionSlice struct {
 // -----------------------------------------------------------------------------
 
 // Create - creates JWT
-func (a *App) Create(s *json.RawMessage) (*json.RawMessage, error) {
+func (a *App) Create(producer string, s *json.RawMessage) (*json.RawMessage, error) {
 
 	a.Log.Debugf("Got JWT data: %s", s)
 
@@ -97,7 +97,7 @@ func (a *App) Create(s *json.RawMessage) (*json.RawMessage, error) {
 		s,
 		jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(time.Hour * time.Duration(a.Config.Age)).Unix(),
-			Issuer:    a.Config.Producer,
+			Issuer:    fmt.Sprintf("%s:%s", a.Config.Producer, producer),
 		},
 	}
 
