@@ -258,9 +258,11 @@ func FetchSQLResult(rows *pgx.Rows, log *logger.Log) (data *TableRows, err error
 			var v interface{}
 			val := values[i]
 			if types[i] == "json" || types[i] == "jsonb" {
-				raw := fmt.Sprintf("%s", val)
-				ref := json.RawMessage(raw)
-				entry[col] = &ref
+				if val != nil {
+					raw := fmt.Sprintf("%s", val)
+					ref := json.RawMessage(raw)
+					entry[col] = &ref
+				}
 			} else {
 				v = val
 				entry[col] = v
