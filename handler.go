@@ -135,7 +135,7 @@ func (s RPCServer) httpHandler() http.HandlerFunc {
 			w.Header().Add("Access-Control-Allow-Origin", origin)
 			w.Header().Add("Access-Control-Allow-Credentials", "true") // TODO
 			w.Header().Add("Access-Control-Allow-Headers",
-				"origin, content-type, accept, keep-alive, user-agent, x-requested-with, x-token")
+				"origin, content-type, accept, keep-alive, user-agent, x-requested-with, x-token, authorization")
 			w.Header().Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 
 		}
