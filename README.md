@@ -28,16 +28,16 @@ This service
     ```
 * and returns query result as json:
     ```
-curl "http://localhost:8081/api/public.echo?id=1&name=op" | jq "."
-{
-  "result": [
+    curl "http://localhost:8081/api/public.echo?id=1&name=op" | jq "."
     {
-      "name": "op",
-      "id": 1
+      "result": [
+        {
+          "name": "op",
+          "id": 1
+        }
+      ],
+      "success": true
     }
-  ],
-  "success": true
-}
     ```
 
 Also, the same functionality may be used via JSON-RPC interface
@@ -83,7 +83,13 @@ Features
 
 Declaration:
 ```sql
-SELECT ws.register_comment('echo_arr','тест массива','{"a_name":"массив","a_id":"число"}','{"name":"массив","id":"число"}','');
+SELECT ws.register_comment(
+     'echo_arr'
+    ,'тест массива'
+    ,'{"a_name":"массив","a_id":"число"}'
+    ,'{"name":"массив","id":"число"}'
+    ,''
+);
 
 CREATE OR REPLACE FUNCTION echo_arr(
   a_name   TEXT[]
@@ -96,7 +102,7 @@ $_$;
 
 Calls:
 ```
- curl -s 'http://localhost:8081/rpc/echo_arr?a_id=107050&a_name=2&a_name=3'
+curl -gs 'http://localhost:8081/rpc/echo_arr?a_id=107050&a_name=2&a_name=3'
 {
     "success": true,
     "result": [
@@ -110,7 +116,7 @@ Calls:
     ]
 }
 
-curl gs 'http://localhost:8081/rpc/echo_arr?a_id=107050&a_name=2,3'
+curl -gs 'http://localhost:8081/rpc/echo_arr?a_id=107050&a_name=2,3'
 {
     "success": true,
     "result": [
