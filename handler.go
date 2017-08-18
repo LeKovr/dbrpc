@@ -151,7 +151,31 @@ func (s RPCServer) httpHandler() http.HandlerFunc {
 			}
 			log.Debugf("Lookup auth got %v", se)
 			session = se
+		} else {
+			session = &jwtutil.Session{}
 		}
+
+		// setup language
+		if len(cfg.Langs) > 0 {
+			log.Debugf("Language supported: %+v", cfg.Langs)
+			if langHdr := r.Header.Get(cfg.LangHeader); langHdr != "" {
+				if stringExists(cfg.Langs, langHdr, "") {
+					log.Debugf("Use lang %s from header", langHdr)
+					(*session)["lang"] = langHdr
+				} else {
+					log.Debugf("Unsupported lang %s in header, using default", langHdr)
+					(*session)["lang"] = cfg.Langs[0]
+				}
+			} else {
+				(*session)["lang"] = cfg.Langs[0]
+			}
+		}
+		// setup timezone
+		if tzHdr := r.Header.Get(cfg.TZHeader); tzHdr != "" {
+			log.Debugf("Use tz %s from header", tzHdr)
+			(*session)["tz"] = tzHdr
+		}
+
 		if r.Method == "GET" {
 			s.getContextHandler(w, r, session, true, cfg.Compact)
 		} else if r.Method == "HEAD" {
@@ -263,9 +287,17 @@ func (s RPCServer) getContextHandler(w http.ResponseWriter, r *http.Request, ses
 	}
 
 	r.ParseForm()
+	var lang string
+	if langs, ok := (*session)["lang"]; ok {
+		lang = langs.(string)
+	}
+	var tz string
+	if tzs, ok := (*session)["tz"]; ok {
+		tz = tzs.(string)
+	}
 
 	f404 := []string{}
-	ret := CallDef{Age: s.Age(fd.MaxAge), Name: &fd.NspName, Proc: &fd.ProName, Args: map[string]interface{}{}}
+	ret := CallDef{Age: s.Age(fd.MaxAge), Name: &fd.NspName, Proc: &fd.ProName, Lang: &lang, TZ: &tz, Args: map[string]interface{}{}}
 
 	for _, a := range argDef {
 		var v []string
@@ -496,10 +528,19 @@ func (s RPCServer) postgrestContextHandler(w http.ResponseWriter, r *http.Reques
 	//w.Write([]byte("\n"))
 }
 
-func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams, nsp, proc string, age int, session *jwtutil.Session, prefix string) (CallDef, []string) {
+func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams,
+	nsp, proc string, age int, session *jwtutil.Session, prefix string) (CallDef, []string) {
 
 	f404 := []string{}
-	ret := CallDef{Age: age, Name: &nsp, Proc: &proc, Args: map[string]interface{}{}}
+	var lang string
+	if langs, ok := (*session)["lang"]; ok {
+		lang = langs.(string)
+	}
+	var tz string
+	if tzs, ok := (*session)["tz"]; ok {
+		tz = tzs.(string)
+	}
+	ret := CallDef{Age: age, Name: &nsp, Proc: &proc, Lang: &lang, TZ: &tz, Args: map[string]interface{}{}}
 	for _, a := range argDef {
 
 		var v interface{}

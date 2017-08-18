@@ -34,17 +34,22 @@ type Flags struct {
 
 // AplFlags defines applied logic flags
 type AplFlags struct {
-	Prefix       string   `long:"url_prefix" default:"/rpc/"  description:"Http request prefix"`
-	Schema       string   `long:"db_schema" default:"public" description:"Database functions schema name or comma delimited list"`
-	ArgDefFunc   string   `long:"db_argdef" default:"pg_func_args" description:"Argument definition function"`
-	ArgIndexFunc string   `long:"db_index" default:"index" description:"Available functions list"`
+	Prefix       string `long:"url_prefix" default:"/rpc/"  description:"Http request prefix"`
+	Schema       string `long:"db_schema" default:"public" description:"Database functions schema name or comma delimited list"`
+	ArgDefFunc   string `long:"db_argdef" default:"pg_func_args" description:"Argument definition function"`
+	ArgIndexFunc string `long:"db_index" default:"index" description:"Available functions list"`
+	BeginFunc    string `long:"db_begin" default:"" description:"Funcion to run before every db call with (tz,lang) args"`
+	// ConfigFunc    string   `long:"db_config" default:"" description:"Funcion to load config from"`
 	Hosts        []string `long:"http_origin" description:"Allowed http origin(s)"`
-	Lang         string   `long:"lang" default:"ru" description:"Default definition language"`
+	Langs        []string `long:"langs" description:"Allowed app language (first is default)"`
+	LangHeader   string   `long:"lang_header" default:"X-DBRPC-Language" description:"HTTP header with app language"`
+	TZHeader     string   `long:"tz_header" default:"X-DBRPC-Timezone" description:"HTTP header with timezine for parsing string datatimes"`
 	Compact      bool     `long:"compact_get" description:"Do not pretty print json on GET request"`
 	ArgSyntax    string   `long:"db_arg_syntax" default:":=" description:"Default named args syntax (:= or =>)"`
 	JWTSuffix    string   `long:"jwt_suffix" default:":jwt" description:"Function name suffix for JWT encoded result"`
 	JWTArgPrefix string   `long:"jwt_arg_prefix" default:"_" description:"Function arg name prefix for getting from JWT data"`
-	PermitFunc   string   `long:"db_permit_func" description:"Function to call for permit checking"`
+	// JWTFuncPrefix string   `long:"jwt_func_prefix" default:"" description:"Function name prefix which allowed for jwt calls"`
+	// PermitFunc string `long:"db_permit_func" description:"Function to call for permit checking"`
 }
 
 // Config defines all of application flags
@@ -182,6 +187,10 @@ func setUp(cfg *Config) (log *logger.Log, db *pgx.ConnPool, err error) {
 				_, err = conn.Exec("set search_path = " + cfg.apl.Schema)
 			}
 			log.Debugf("Added DB connection")
+			// TODO
+			//			if cfg.apl.ConfigFunc != "" {
+			//				log.Debugf("Loaded DB config from %s", cfg.apl.ConfigFunc)
+			//			}
 			return err
 		},
 	})

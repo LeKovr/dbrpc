@@ -8,4 +8,6 @@ type CallDef struct {
 	Proc *string                `json:"proc"`
 	Args map[string]interface{} `json:"arg"`
 	Age  int                    `json:"age"`
+	Lang *string                `json:"lang"`
+	TZ   *string                `json:"tz"`
 }

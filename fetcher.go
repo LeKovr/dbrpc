@@ -127,10 +127,14 @@ func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool, key string) (data
 	var rows *pgx.Rows
 	var q string
 	var vals []interface{}
-
+	var table *TableRows
+	inTx := cfg.BeginFunc != "" // call in transaction
+	var lang *string
+	var tz *string
 	if strings.HasPrefix(key, "[") {
 		var args []interface{}
 		err = json.Unmarshal([]byte(key), &args)
+		inTx = false // no transaction for internal calls
 		if err != nil {
 			return
 		}
@@ -141,16 +145,56 @@ func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool, key string) (data
 		if err != nil {
 			return
 		}
-		q, vals = PrepareFuncSQLmap(cfg, args)
-	}
-	log.Debugf("Query: %s args: %+v", q, vals)
-	rows, err = db.Query(q, vals...)
-	if err != nil {
-		return
+		q, vals, lang, tz = PrepareFuncSQLmap(cfg, args)
 	}
 
-	table, err := FetchSQLResult(rows, log)
-	defer rows.Close()
+	log.Debugf("Query: %s args: %+v", q, vals)
+
+	if inTx {
+		// call func after begin
+		log.Debug("Run in transaction mode")
+		var tx *pgx.Tx
+		tx, err = db.Begin()
+		if err != nil {
+			return
+		}
+		// Rollback is safe to call even if the tx is already closed, so if
+		// the tx commits successfully, this is a no-op
+		defer tx.Rollback()
+
+		rows, err = tx.Query("select "+cfg.BeginFunc+"($1,$2)", lang, tz)
+		if err != nil {
+			return
+		}
+		rows.Next() // just fetch unneded data or will be "conn is busy"
+		if rows.Err() != nil {
+			err = rows.Err()
+			return
+		}
+		rows.Close()
+
+		log.Debug("Run main call")
+		rows, err = tx.Query(q, vals...)
+		if err != nil {
+			return
+		}
+		table, err = FetchSQLResult(rows, log)
+		if err != nil {
+			return
+		}
+
+		err = tx.Commit()
+		log.Debug("Call committed")
+
+	} else {
+		rows, err = db.Query(q, vals...)
+		if err != nil {
+			return
+		}
+		table, err = FetchSQLResult(rows, log)
+		defer rows.Close()
+	}
+
 	if err != nil {
 		return
 	}
@@ -195,7 +239,7 @@ func PrepareFuncSQL(cfg *AplFlags, args []interface{}) (string, []interface{}) {
 // -----------------------------------------------------------------------------
 
 // PrepareFuncSQLmap prepares sql query with named args placeholders
-func PrepareFuncSQLmap(cfg *AplFlags, args CallDef) (string, []interface{}) {
+func PrepareFuncSQLmap(cfg *AplFlags, args CallDef) (string, []interface{}, *string, *string) {
 
 	var proc string
 	ref := args.Proc
@@ -227,7 +271,7 @@ func PrepareFuncSQLmap(cfg *AplFlags, args CallDef) (string, []interface{}) {
 		q = fmt.Sprintf("select * from %s(%s)", proc, argIDStr)
 	}
 
-	return q, argValPrep
+	return q, argValPrep, args.Lang, args.TZ
 }
 
 // -----------------------------------------------------------------------------
