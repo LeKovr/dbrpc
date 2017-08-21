@@ -185,3 +185,16 @@ $(CFG):
 
 .PHONY: all run ver buildall clean dist link vet
 
+# ------------------------------------------------------------------------------
+
+# $$PWD используется для того, чтобы текущий каталог был доступен в контейнере по тому же пути
+# и относительные тома новых контейнеров могли его использовать
+## run docker-compose
+dc: docker-compose.yml
+	@docker run --rm -t -i \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v $$PWD:$$PWD \
+  -w $$PWD \
+  docker/compose:1.14.0 \
+  $(CMD)
+
