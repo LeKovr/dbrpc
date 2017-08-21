@@ -30,16 +30,16 @@ type Flags struct {
 	CacheSize  int64  `long:"cache_size" default:"67108864"  description:"Cache size in bytes"` // 64<<20
 	Version    bool   `long:"version" description:"Show version and exit"`
 	Connect    string `long:"db_connect" default:"user:pass@localhost/userdb?sslmode=disable" description:"Database connect string"`
+	//	MetricAddr string `long:"metric_http_addr" default:""  description:"Http metrics listen address"`
 }
 
 // AplFlags defines applied logic flags
 type AplFlags struct {
-	Prefix       string `long:"url_prefix" default:"/rpc/"  description:"Http request prefix"`
-	Schema       string `long:"db_schema" default:"public" description:"Database functions schema name or comma delimited list"`
-	ArgDefFunc   string `long:"db_argdef" default:"pg_func_args" description:"Argument definition function"`
-	ArgIndexFunc string `long:"db_index" default:"index" description:"Available functions list"`
-	BeginFunc    string `long:"db_begin" default:"" description:"Funcion to run before every db call with (tz,lang) args"`
-	// ConfigFunc    string   `long:"db_config" default:"" description:"Funcion to load config from"`
+	Prefix       string   `long:"url_prefix" default:"/rpc/"  description:"Http request prefix"`
+	Schema       string   `long:"db_schema" default:"public" description:"Database functions schema name or comma delimited list"`
+	ArgDefFunc   string   `long:"db_argdef" default:"pg_func_args" description:"Argument definition function"`
+	ArgIndexFunc string   `long:"db_index" default:"index" description:"Available functions list"`
+	BeginFunc    string   `long:"db_begin" default:"" description:"Funcion to run before every db call with (tz,lang) args"`
 	Hosts        []string `long:"http_origin" description:"Allowed http origin(s)"`
 	Langs        []string `long:"langs" description:"Allowed app language (first is default)"`
 	LangHeader   string   `long:"lang_header" default:"X-DBRPC-Language" description:"HTTP header with app language"`
@@ -48,6 +48,9 @@ type AplFlags struct {
 	ArgSyntax    string   `long:"db_arg_syntax" default:":=" description:"Default named args syntax (:= or =>)"`
 	JWTSuffix    string   `long:"jwt_suffix" default:":jwt" description:"Function name suffix for JWT encoded result"`
 	JWTArgPrefix string   `long:"jwt_arg_prefix" default:"_" description:"Function arg name prefix for getting from JWT data"`
+
+	CacheResetEvent string `long:"db_reset_event" default:"dbrpc_reset" description:"Listen for this event and reset cache when received"`
+	// ConfigFunc    string   `long:"db_config" default:"" description:"Funcion to load config from"`
 	// JWTFuncPrefix string   `long:"jwt_func_prefix" default:"" description:"Function name prefix which allowed for jwt calls"`
 	// PermitFunc string `long:"db_permit_func" description:"Function to call for permit checking"`
 }
@@ -108,17 +111,16 @@ func Handlers(cfg *Config, log *logger.Log, db *pgx.ConnPool) (*mux.Router, *wor
 	)
 	panicIfError(err)
 
-	fm, err := indexFetcher(&cfg.apl, log, db)
 	jwt, err := jwtutil.New(log, jwtutil.Config(&cfg.JWT))
 
 	srv := RPCServer{
 		cfg:     &cfg.apl,
 		log:     log,
 		jc:      wm.JobQueue,
-		funcs:   fm,
 		JWT:     jwt,
 		started: int(time.Now().Unix()),
 	}
+	srv.Setup(db)
 
 	r := mux.NewRouter()
 	r.PathPrefix(cfg.apl.Prefix).Handler(srv.httpHandler())

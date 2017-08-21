@@ -9,7 +9,10 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"gopkg.in/jackc/pgx.v2"
 
 	"github.com/LeKovr/dbrpc/jwtutil"
 	"github.com/LeKovr/dbrpc/workman"
@@ -32,12 +35,75 @@ type FuncArgDef []ArgDef
 
 // RPCServer holds server attributes
 type RPCServer struct {
+	cacheID uint32
 	cfg     *AplFlags
 	log     *logger.Log
 	jc      chan workman.Job
 	funcs   *FuncMap
 	started int
 	JWT     *jwtutil.App
+	lock    *sync.RWMutex
+}
+
+// -----------------------------------------------------------------------------
+
+// LoadFuncs stores func attr with locking
+func (s *RPCServer) LoadFuncs(db *pgx.ConnPool) {
+	fm, err := indexFetcher(s.cfg, s.log, db)
+	if err != nil {
+		s.log.Fatal("Error loading function index:", err)
+	}
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.cacheID++
+	s.funcs = fm
+}
+
+// -----------------------------------------------------------------------------
+
+// Setup initializes RPC server
+func (s *RPCServer) Setup(db *pgx.ConnPool) {
+	s.cacheID = 0
+	s.lock = &sync.RWMutex{}
+	s.LoadFuncs(db)
+	go s.ListenCounter(db)
+}
+
+// -----------------------------------------------------------------------------
+
+// ListenCounter listens db event & resets cache
+func (s *RPCServer) ListenCounter(db *pgx.ConnPool) {
+	conn, err := db.Acquire()
+	if err != nil {
+		s.log.Fatal("Error acquiring connection:", err)
+	}
+	defer db.Release(conn)
+
+	conn.Listen(s.cfg.CacheResetEvent)
+
+	for {
+		notification, err := conn.WaitForNotification(60 * time.Second)
+		if err != nil && err != pgx.ErrNotificationTimeout {
+			// error, no timeout
+			s.log.Warn("Error waiting for notification:", err)
+			time.Sleep(time.Second * 10) // sleep & repeat
+		} else if err == nil {
+			// no error, no timeout
+			s.log.Warnf("Cache reset event received with payload: %s", notification.Payload)
+			//fmt.Println("PID:", notification.Pid, "Channel:", notification.Channel, "Payload:", notification.Payload)
+			s.LoadFuncs(db)
+		}
+
+	}
+}
+
+// -----------------------------------------------------------------------------
+
+// CacheID returns current cache id
+func (s RPCServer) CacheID() uint32 {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	return s.cacheID
 }
 
 // -----------------------------------------------------------------------------
@@ -75,7 +141,8 @@ type respPGTError struct {
 // FunctionArgDef creates a job for fetching of function argument definition
 func (s RPCServer) FunctionArgDef(nsp, proc string) (FuncArgDef, interface{}) {
 
-	key := []*string{nil, &s.cfg.ArgDefFunc, &nsp, &proc}
+	id := string(s.CacheID())
+	key := []*string{nil, &id, &s.cfg.ArgDefFunc, &nsp, &proc}
 
 	payload, _ := json.Marshal(key)
 	respChannel := make(chan workman.Result)
@@ -117,7 +184,7 @@ func FunctionResult(jc chan workman.Job, payload string) workman.Result {
 
 // -----------------------------------------------------------------------------
 
-func (s RPCServer) httpHandler() http.HandlerFunc {
+func (s *RPCServer) httpHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log := s.log
 		cfg := s.cfg
@@ -163,7 +230,7 @@ func (s RPCServer) httpHandler() http.HandlerFunc {
 
 		// setup language
 		if len(cfg.Langs) > 0 {
-			log.Debugf("Language supported: %+v", cfg.Langs)
+			//log.Debugf("Language supported: %+v", cfg.Langs)
 			if langHdr := r.Header.Get(cfg.LangHeader); langHdr != "" {
 				if stringExists(cfg.Langs, langHdr, "") {
 					log.Debugf("Use lang %s from header", langHdr)
@@ -252,7 +319,11 @@ func stringExists(strings []string, str string, any string) bool {
 // -----------------------------------------------------------------------------
 
 // FunctionDef returns function attributes from index() method
-func (s RPCServer) FunctionDef(method string) (*FuncDef, error) {
+func (s *RPCServer) FunctionDef(method string) (*FuncDef, error) {
+
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
 	fm := *s.funcs
 
 	if def, ok := fm[method]; ok {
@@ -263,7 +334,7 @@ func (s RPCServer) FunctionDef(method string) (*FuncDef, error) {
 
 // -----------------------------------------------------------------------------
 
-func (s RPCServer) getContextHandler(w http.ResponseWriter, r *http.Request, session *jwtutil.Session, reply bool, compact bool) {
+func (s *RPCServer) getContextHandler(w http.ResponseWriter, r *http.Request, session *jwtutil.Session, reply bool, compact bool) {
 	start := time.Now()
 	log := s.log
 	method := strings.TrimPrefix(r.URL.Path, s.cfg.Prefix)
@@ -303,7 +374,15 @@ func (s RPCServer) getContextHandler(w http.ResponseWriter, r *http.Request, ses
 	}
 
 	f404 := []string{}
-	ret := CallDef{Age: s.Age(fd.MaxAge), Name: &fd.NspName, Proc: &fd.ProName, Lang: &lang, TZ: &tz, Args: map[string]interface{}{}}
+	ret := CallDef{
+		Cache: s.CacheID(),
+		Age:   s.Age(fd.MaxAge),
+		Name:  &fd.NspName,
+		Proc:  &fd.ProName,
+		Lang:  &lang,
+		TZ:    &tz,
+		Args:  map[string]interface{}{},
+	}
 
 	for _, a := range argDef {
 		var v []string
@@ -369,7 +448,7 @@ func (s RPCServer) getContextHandler(w http.ResponseWriter, r *http.Request, ses
 // -----------------------------------------------------------------------------
 
 // postContextHandler serve JSON-RPC envelope
-func (s RPCServer) postContextHandler(w http.ResponseWriter, r *http.Request, session *jwtutil.Session) {
+func (s *RPCServer) postContextHandler(w http.ResponseWriter, r *http.Request, session *jwtutil.Session) {
 
 	start := time.Now()
 	log := s.log
@@ -410,7 +489,7 @@ func (s RPCServer) postContextHandler(w http.ResponseWriter, r *http.Request, se
 			// Load args
 			r.ParseForm()
 			log.Infof("Argument source: %+v", req.Params)
-			key, f404 := fetchArgs(log, argDef, req.Params, fd.NspName, fd.ProName, s.Age(fd.MaxAge), session, s.cfg.JWTArgPrefix)
+			key, f404 := fetchArgs(log, argDef, req.Params, fd.NspName, fd.ProName, s.Age(fd.MaxAge), s.CacheID(), session, s.cfg.JWTArgPrefix)
 			if len(f404) > 0 {
 				resultRPC.Error = getRaw(respRPCError{Code: -32602, Message: "Required parameter(s) not found", Data: getRaw(f404)})
 			} else {
@@ -449,7 +528,7 @@ func (s RPCServer) postContextHandler(w http.ResponseWriter, r *http.Request, se
 
 // postgrestContextHandler serve JSON-RPC envelope
 // 404 when method not found
-func (s RPCServer) postgrestContextHandler(w http.ResponseWriter, r *http.Request, session *jwtutil.Session) {
+func (s *RPCServer) postgrestContextHandler(w http.ResponseWriter, r *http.Request, session *jwtutil.Session) {
 
 	start := time.Now()
 	log := s.log
@@ -497,7 +576,7 @@ func (s RPCServer) postgrestContextHandler(w http.ResponseWriter, r *http.Reques
 		} else {
 			// Load args
 			log.Infof("Argument source: %+v (session: %+v)", req, session)
-			key, f404 := fetchArgs(log, argDef, req, fd.NspName, fd.ProName, s.Age(fd.MaxAge), session, s.cfg.JWTArgPrefix)
+			key, f404 := fetchArgs(log, argDef, req, fd.NspName, fd.ProName, s.Age(fd.MaxAge), s.CacheID(), session, s.cfg.JWTArgPrefix)
 			if len(f404) > 0 {
 				resultRPC = respPGTError{Code: "42883", Message: "Required parameter(s) not found", Details: getRaw(strings.Join(f404, ", "))}
 				resultStatus = http.StatusBadRequest
@@ -535,7 +614,7 @@ func (s RPCServer) postgrestContextHandler(w http.ResponseWriter, r *http.Reques
 }
 
 func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams,
-	nsp, proc string, age int, session *jwtutil.Session, prefix string) (CallDef, []string) {
+	nsp, proc string, age int, cacheID uint32, session *jwtutil.Session, prefix string) (CallDef, []string) {
 
 	f404 := []string{}
 	var lang string
@@ -546,7 +625,15 @@ func fetchArgs(log *logger.Log, argDef FuncArgDef, req reqParams,
 	if tzs, ok := (*session)["tz"]; ok {
 		tz = tzs.(string)
 	}
-	ret := CallDef{Age: age, Name: &nsp, Proc: &proc, Lang: &lang, TZ: &tz, Args: map[string]interface{}{}}
+	ret := CallDef{
+		Cache: cacheID,
+		Age:   age,
+		Name:  &nsp,
+		Proc:  &proc,
+		Lang:  &lang,
+		TZ:    &tz,
+		Args:  map[string]interface{}{},
+	}
 	for _, a := range argDef {
 
 		var v interface{}

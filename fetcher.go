@@ -134,10 +134,10 @@ func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool, key string) (data
 	if strings.HasPrefix(key, "[") {
 		var args []interface{}
 		err = json.Unmarshal([]byte(key), &args)
-		inTx = false // no transaction for internal calls
 		if err != nil {
 			return
 		}
+		inTx = false // no transaction for internal calls
 		q, vals = PrepareFuncSQL(cfg, args)
 	} else {
 		var args CallDef
@@ -211,8 +211,9 @@ func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool, key string) (data
 
 // PrepareFuncSQL prepares sql query with args placeholders
 func PrepareFuncSQL(cfg *AplFlags, args []interface{}) (string, []interface{}) {
-	proc := args[1].(string)
-	argVals := args[2:]
+
+	proc := args[2].(string) // nil, cache_id, method, args..
+	argVals := args[3:]
 
 	argValPrep := make([]interface{}, len(argVals))
 	argIDs := make([]string, len(argVals))
