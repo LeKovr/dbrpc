@@ -247,6 +247,8 @@ func (s *RPCServer) httpHandler() http.HandlerFunc {
 		if tzHdr := r.Header.Get(cfg.TZHeader); tzHdr != "" {
 			log.Debugf("Use tz %s from header", tzHdr)
 			(*session)["tz"] = tzHdr
+		} else {
+			(*session)["tz"] = ""
 		}
 
 		if r.Method == "GET" {
