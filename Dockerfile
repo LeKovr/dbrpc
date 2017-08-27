@@ -13,5 +13,8 @@ FROM scratch
 WORKDIR /
 COPY --from=0 /go/src/app/dbrpc .
 
+# sql code for db server
+COPY sql/*.sql /opt/sql/
+
 EXPOSE 8080
 ENTRYPOINT ["/dbrpc"]
