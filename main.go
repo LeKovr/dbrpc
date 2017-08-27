@@ -29,6 +29,7 @@ type Flags struct {
 	CacheGroup string `long:"cache_group" default:"DBRPC"  description:"Cache group name"`
 	CacheSize  int64  `long:"cache_size" default:"67108864"  description:"Cache size in bytes"` // 64<<20
 	Version    bool   `long:"version" description:"Show version and exit"`
+	Wait       int    `long:"wait" default:"0" description:"If value>0, wait given seconds and exit"`
 	Connect    string `long:"db_connect" default:"user:pass@localhost/userdb?sslmode=disable" description:"Database connect string"`
 	//	MetricAddr string `long:"metric_http_addr" default:""  description:"Http metrics listen address"`
 }
@@ -160,6 +161,12 @@ func setUp(cfg *Config) (log *logger.Log, db *pgx.ConnPool, err error) {
 	if cfg.Version {
 		// show version & exit
 		fmt.Printf("%s\n%s\n%s", Version, Build, Commit)
+		os.Exit(0)
+	}
+	if cfg.Wait > 0 {
+		// wait some time & exit
+		fmt.Printf("Waiting for %d secs\n", cfg.Wait)
+		time.Sleep(time.Second * time.Duration(cfg.Wait))
 		os.Exit(0)
 	}
 
