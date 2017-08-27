@@ -66,7 +66,9 @@ func (s *RPCServer) Setup(db *pgx.ConnPool) {
 	s.cacheID = 0
 	s.lock = &sync.RWMutex{}
 	s.LoadFuncs(db)
-	go s.ListenCounter(db)
+	if s.cfg.CacheResetEvent != "disable" {
+		go s.ListenCounter(db)
+	}
 }
 
 // -----------------------------------------------------------------------------

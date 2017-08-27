@@ -49,7 +49,7 @@ type AplFlags struct {
 	JWTSuffix    string   `long:"jwt_suffix" default:":jwt" description:"Function name suffix for JWT encoded result"`
 	JWTArgPrefix string   `long:"jwt_arg_prefix" default:"_" description:"Function arg name prefix for getting from JWT data"`
 
-	CacheResetEvent string `long:"db_reset_event" default:"dbrpc_reset" description:"Listen for this event and reset cache when received"`
+	CacheResetEvent string `long:"db_reset_event" default:"dbrpc_reset" description:"Listen for this event and reset cache when received (or 'disable')"`
 	// ConfigFunc    string   `long:"db_config" default:"" description:"Funcion to load config from"`
 	// JWTFuncPrefix string   `long:"jwt_func_prefix" default:"" description:"Function name prefix which allowed for jwt calls"`
 	// PermitFunc string `long:"db_permit_func" description:"Function to call for permit checking"`
