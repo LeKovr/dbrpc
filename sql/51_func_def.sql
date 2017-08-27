@@ -3,7 +3,21 @@
 
 */
 
-/* ------------------------------------------------------------------------- */
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION pg_func_is_ro(a_nspname TEXT, a_proname TEXT) RETURNS BOOL
+  STABLE LANGUAGE 'sql' AS
+$_$
+  -- internal func
+    SELECT p.provolatile <> 'v'
+      FROM pg_catalog.pg_proc p
+      JOIN pg_namespace n ON (n.oid = p.pronamespace)
+     WHERE n.nspname = a_nspname
+       AND p.proname = a_proname
+    ;
+$_$;
+COMMENT ON FUNCTION pg_func_is_ro(TEXT, TEXT) IS 'Function is read-only (not volatile)';
+
+-- -----------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION pg_func_args(a_nspname TEXT, a_proname TEXT) 
   RETURNS TABLE(arg TEXT, type TEXT, id INT, required BOOL, def_val TEXT) STABLE LANGUAGE 'plpgsql' AS
@@ -73,13 +87,12 @@ $_$
     RETURN;
   END;
 $_$;
-COMMENT ON FUNCTION pg_func_args(TEXT, TEXT) IS 'Return function argument definition';
+COMMENT ON FUNCTION pg_func_args(TEXT, TEXT) IS 'Function arguments definition';
 
-/* ------------------------------------------------------------------------- */
+-- -----------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION pg_func_result(a_nspname TEXT, a_proname TEXT) RETURNS TABLE(arg TEXT, type TEXT) STABLE LANGUAGE 'plpgsql' AS
 $_$
-  -- a_code:  название функции
   DECLARE
     v_is_set     BOOL;
     v_ret        TEXT;
@@ -95,7 +108,7 @@ $_$
     ;
 
     IF v_ret = '' THEN
-      -- ф-я не имеет результата
+      -- function has no results (VOID)
       RETURN;
     END IF;
     RAISE DEBUG 'result1: % (%)',v_ret,v_is_set;
@@ -114,4 +127,4 @@ $_$
   END;
 $_$;
 
-COMMENT ON FUNCTION pg_func_result(TEXT, TEXT) IS 'Return function result definition';
+COMMENT ON FUNCTION pg_func_result(TEXT, TEXT) IS 'Function result definition';
