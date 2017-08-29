@@ -215,17 +215,22 @@ func (s *RPCServer) httpHandler() http.HandlerFunc {
 
 		}
 		var session *jwtutil.Session
-		if auth := r.Header.Get("Authorization"); auth != "" {
+		if auth := r.Header.Get(cfg.AuthHeader); auth != "" {
 			// log.Debugf("Lookup auth from %s", auth)
-			authData := strings.TrimPrefix(auth, "Bearer ") // todo: error if eq
-			se, err := s.JWT.Parse(authData)
-			if err != nil {
-				log.Warningf("Auth parse error: %s", err)
-				http.Error(w, "Auth error", http.StatusForbidden)
-				return
+			authData := strings.TrimPrefix(auth, "Bearer ")
+			if authData != auth {
+				se, err := s.JWT.Parse(authData)
+				if err != nil {
+					log.Warningf("Auth token parse error: %s", err)
+					http.Error(w, "Auth token parse error", http.StatusForbidden)
+					return
+				}
+				log.Debugf("Lookup auth got %v", se)
+				session = se
+			} else {
+				log.Warningf("Unsupported Auth scheme: %s, ignored", auth)
+				session = &jwtutil.Session{}
 			}
-			log.Debugf("Lookup auth got %v", se)
-			session = se
 		} else {
 			session = &jwtutil.Session{}
 		}

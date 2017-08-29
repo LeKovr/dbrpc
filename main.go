@@ -43,6 +43,7 @@ type AplFlags struct {
 	BeginFunc    string   `long:"db_begin" default:"" description:"Funcion to run before every db call with (tz,lang) args"`
 	Hosts        []string `long:"http_origin" description:"Allowed http origin(s)"`
 	Langs        []string `long:"langs" description:"Allowed app language (first is default)"`
+	AuthHeader   string   `long:"auth_header" default:"Authorization" description:"HTTP header with authorization data"`
 	LangHeader   string   `long:"lang_header" default:"X-DBRPC-Language" description:"HTTP header with app language"`
 	TZHeader     string   `long:"tz_header" default:"X-DBRPC-Timezone" description:"HTTP header with timezine for parsing string datatimes"`
 	Compact      bool     `long:"compact_get" description:"Do not pretty print json on GET request"`
