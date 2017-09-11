@@ -42,7 +42,7 @@ type AplFlags struct {
 	ArgIndexFunc string   `long:"db_index" default:"index" description:"Available functions list"`
 	BeginFunc    string   `long:"db_begin" default:"" description:"Funcion to run before every db call with (tz,lang) args"`
 	Hosts        []string `long:"http_origin" description:"Allowed http origin(s)"`
-	Langs        []string `long:"langs" description:"Allowed app language (first is default)"`
+	Langs        []string `long:"langs" description:"Allowed app language(s) (first is default)"`
 	AuthHeader   string   `long:"auth_header" default:"Authorization" description:"HTTP header with authorization data"`
 	LangHeader   string   `long:"lang_header" default:"X-DBRPC-Language" description:"HTTP header with app language"`
 	TZHeader     string   `long:"tz_header" default:"X-DBRPC-Timezone" description:"HTTP header with timezine for parsing string datatimes"`
@@ -53,7 +53,6 @@ type AplFlags struct {
 
 	CacheResetEvent string `long:"db_reset_event" default:"dbrpc_reset" description:"Listen for this event and reset cache when received (or 'disable')"`
 	// ConfigFunc    string   `long:"db_config" default:"" description:"Funcion to load config from"`
-	// JWTFuncPrefix string   `long:"jwt_func_prefix" default:"" description:"Function name prefix which allowed for jwt calls"`
 	// PermitFunc string `long:"db_permit_func" description:"Function to call for permit checking"`
 }
 

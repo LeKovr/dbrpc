@@ -201,7 +201,8 @@ func (s *RPCServer) httpHandler() http.HandlerFunc {
 				http.Error(w, "Origin not registered", http.StatusForbidden)
 				return
 			}
-			methodsAllowed := "origin, content-type, accept, keep-alive, user-agent, x-requested-with, x-token, authorization"
+			methodsAllowed := "origin, content-type, accept, keep-alive, user-agent, x-requested-with, x-token"
+			methodsAllowed = methodsAllowed + ", " + cfg.AuthHeader
 			if cfg.LangHeader != "" {
 				methodsAllowed = methodsAllowed + ", " + cfg.LangHeader
 			}
