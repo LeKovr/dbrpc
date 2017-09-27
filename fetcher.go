@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"gopkg.in/jackc/pgx.v2"
@@ -59,8 +60,12 @@ func dbFetcher(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool) groupcache.Gett
 		data, err := dbQuery(cfg, log, db, key)
 		if err != nil {
 			log.Warnf("Query for key %s error: %+v", key, err)
+			// TODO: send to error logging channel
+			data, err = parseError(err)
+			if err != nil {
+				data, _ = json.Marshal(err.Error())
+			}
 			isOk = 0
-			data, _ = json.Marshal(err.Error())
 		}
 
 		result := []byte{isOk}
@@ -329,5 +334,47 @@ func FetchSQLResult(rows *pgx.Rows, log *logger.Log) (data *TableRows, err error
 		tableData = TableRows{} // empty result is empty array
 	}
 	data = &tableData
+	return
+}
+
+var reError = regexp.MustCompile(`^ERROR: (.+) \(SQLSTATE (\w+)\)$`)
+var reHash = regexp.MustCompile(`^\{.+\}$`)
+
+// Vars holds error fields hash
+type Vars map[string]interface{}
+
+// ErrorVars holds returned error struct
+type ErrorVars struct {
+	Code    string `json:"code"`
+	Message string `json:"message,omitempty"`
+	Data    Vars   `json:"data,omitempty"`
+}
+
+func parseError(e error) (data []byte, err error) {
+
+	// ERROR: {\"code\" : \"YA014\", \"data\" : {\"login\": \"john\"}} (SQLSTATE P0001)"
+	// EMFE - Error Message Format Error
+	match := reError.FindStringSubmatch(e.Error())
+	if len(match) == 3 {
+		if match[2] == "P0001" {
+			if reHash.MatchString(match[1]) {
+				ev := ErrorVars{}
+				err = json.Unmarshal([]byte(match[1]), &ev)
+				if err != nil {
+					err = fmt.Errorf("%s (EMFE: parse json error: %s)", match[1], err.Error())
+				} else {
+					data, _ = json.Marshal(ev) // Got application error
+				}
+			} else {
+				err = fmt.Errorf("%s (EMFE: not json hash in message)", match[1])
+			}
+		} else {
+			ev := ErrorVars{Code: match[2], Message: match[1]}
+			data, _ = json.Marshal(ev) // Got postgresql error
+			return
+		}
+	} else {
+		err = fmt.Errorf("%s (EMFE: Unknown error format)", match)
+	}
 	return
 }
