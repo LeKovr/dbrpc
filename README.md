@@ -1,6 +1,4 @@
-
-dbrpc
-=====
+# dbrpc - Database RPC service written in go language.
 
 [![GoCard][1]][2]
 [![GitHub license][3]][4]
@@ -9,8 +7,6 @@ dbrpc
 [2]: https://goreportcard.com/report/github.com/LeKovr/dbrpc
 [3]: https://img.shields.io/badge/license-MIT-blue.svg
 [4]: LICENSE
-
-[dbrpc](https://github.com/LeKovr/dbrpc) - Database RPC service written in go language.
 
 This service
 
@@ -42,8 +38,7 @@ This service
 
 Also, the same functionality may be used via JSON-RPC interface
 
-Features
---------
+## Features
 
 * [x] configurable limit of simultaneous database connections
 * [x] caching with [groupcache](github.com/golang/groupcache)
@@ -56,15 +51,15 @@ Features
 * [x] cache expiration via max_age function attribute
 * [x] JWT result encoding for configured functions
 * [x] JWT header validation & func args substitution
-* [ ] Authentication
+* [x] Authentication
+* [x] Reset metadata cache on SIGHUP and via LISTEN
+* [x] i18n
 * [ ] Access control
 * [ ] RPC interface (gRPC?)
 * [ ] Cache warm/bench/test with wget
-* [ ] Reset metadata cache on SIGHUP and via LISTEN
 * [ ] Metrics for [Prometheus](https://prometheus.io/) via expvar
 * [ ] Integrated templates
 * [ ] Swagger & human autodoc
-* [ ] i18n
 
 ### ToDo
 
@@ -131,8 +126,7 @@ curl -gs 'http://localhost:8081/rpc/echo_arr?a_id=107050&a_name=2,3'
 }
 ```
 
-Install
--------
+## Install
 
 ```
 go get github.com/LeKovr/dbrpc
@@ -142,15 +136,18 @@ go get github.com/LeKovr/dbrpc
 
 See [Latest release](https://github.com/LeKovr/dbrpc/releases/latest)
 
-Acknowledgements
-----------------
+### Sql sample code
+
+See [pgrpc-sql-rpc](https://github.com/pgrpc/pgrpc-sql-rpc)
+
+## Acknowledgements
+
 * [Marcio Castilho](http://marcio.io) for his [blog post](http://marcio.io/2015/07/handling-1-million-requests-per-minute-with-golang/)
 * [groupcache](https://github.com/golang/groupcache) authors
 * Julio Capote for his [groupcache sample](https://github.com/capotej/groupcache-db-experiment)
 
-License
--------
+## License
 
 The MIT License (MIT), see [LICENSE](LICENSE).
 
-Copyright (c) 2016 Alexey Kovrizhkin ak@elfire.ru
+Copyright (c) 2016 Alexey Kovrizhkin <lekovr+pgrpc@gmail.com>
