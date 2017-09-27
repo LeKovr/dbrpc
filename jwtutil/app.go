@@ -139,7 +139,8 @@ func (a *App) Parse(s string) (*Session, error) {
 		a.Log.Debugf("Got JWT session: %+v (%+v)", claims, token.Header)
 
 		if !stringExists(a.Config.Issuers, claims.Issuer, "*") {
-			return nil, fmt.Errorf("Uncorrect JWT Issuer %s", claims.Issuer)
+			a.Log.Debugf("Error: Issuer %s not in allowed list (%+v)", claims.Issuer, a.Config.Issuers)
+			return nil, fmt.Errorf("Incorrect JWT Issuer %s", claims.Issuer)
 		}
 
 		return &claims.Data[0], nil
