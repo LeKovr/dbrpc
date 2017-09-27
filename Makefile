@@ -28,6 +28,8 @@ STAMP     ?= $$(date +%Y-%m-%d_%H:%M.%S)
 ALLARCH   ?= linux/amd64 linux/386 darwin/386 windows/amd64
 #LIBS       = $(shell go list ./... | grep -vE '/(vendor|iface|proto|cmd)/')
 
+# use -a -v to rebuild all sources
+BUILD_FLAG ?=
 
 JWT_KEY                 ?= $(shell < /dev/urandom tr -dc A-Za-z0-9 | head -c14; echo)
 PG_DB_PASS              ?= $(shell < /dev/urandom tr -dc A-Za-z0-9 | head -c14; echo)
@@ -82,8 +84,8 @@ build: lint vet $(PRGPATH)
 $(PRGPATH): $(SOURCES)
 	@echo "*** $@ ***"
 	@[ -d $(GIT_ROOT)/.git ] && GH=`git rev-parse HEAD` || GH=nogit ; \
-GOOS=$(OS) GOARCH=$(ARCH) go build -va -o $(PRGBIN) -ldflags \
-"-X main.Build=$(STAMP) -X main.Commit=$$GH"
+	GOOS=$(OS) GOARCH=$(ARCH) go build -o $(PRGBIN) \
+	  -ldflags "-X main.Build=$(STAMP) -X main.Commit=$$GH"
 
 ## run go lint
 lint:
@@ -94,18 +96,17 @@ lint:
 vet:
 	@echo "*** $@ ***"
 	@for d in "$(SOURCEDIR)" ; do echo $$d && go vet $$d/*.go ; done
-# does not build with go 1.7
 
 # ------------------------------------------------------------------------------
 ## clean generated files
 clean:
 	@echo "*** $@ ***"
 	@for a in $(ALLARCH) ; do \
-  P=$(PRG)_$${a%/*}_$${a#*/} ; \
-  [ "$${a%/*}" == "windows" ] && P=$$P.exe ; \
-  [ -f $$P ] && rm $$P || true ; \
-done ; \
-[ -d $(DIRDIST) ] && rm -rf $(DIRDIST) || true
+	  P=$(PRG)_$${a%/*}_$${a#*/} ; \
+	  [ "$${a%/*}" == "windows" ] && P=$$P.exe ; \
+	  [ -f $$P ] && rm $$P || true ; \
+	done ; \
+	[ -d $(DIRDIST) ] && rm -rf $(DIRDIST) || true
 
 # ------------------------------------------------------------------------------
 # Distro making
@@ -114,26 +115,26 @@ done ; \
 buildall: lint vet
 	@echo "*** $@ ***"
 	@[ -d $(GIT_ROOT)/.git ] && GH=`git rev-parse HEAD` || GH=nogit ; \
-for a in $(ALLARCH) ; do \
-  echo "** $${a%/*} $${a#*/}" ; \
-  P=$(PRG)_$${a%/*}_$${a#*/} ; \
-  [ "$${a%/*}" == "windows" ] && P=$$P.exe ; \
-  GO_ENABLED=0 GOOS=$${a%/*} GOARCH=$${a#*/} go build -o $$P -ldflags \
-  "-X main.Build=$(STAMP) -X main.Commit=$$GH" ; \
-done
+	for a in $(ALLARCH) ; do \
+	  echo "** $${a%/*} $${a#*/}" ; \
+	  P=$(PRG)_$${a%/*}_$${a#*/} ; \
+	  [ "$${a%/*}" == "windows" ] && P=$$P.exe ; \
+	  GO_ENABLED=0 GOOS=$${a%/*} GOARCH=$${a#*/} go build -o $$P -ldflags \
+	  "-X main.Build=$(STAMP) -X main.Commit=$$GH" ; \
+	done
 
 
 ## create disro files
 dist: clean buildall
 	@echo "*** $@ ***"
 	@[ -d $(DIRDIST) ] || mkdir $(DIRDIST) ; \
-sha256sum $(PRG)* > $(DIRDIST)/SHA256SUMS ; \
-for a in $(ALLARCH) ; do \
-  echo "** $${a%/*} $${a#*/}" ; \
-  P=$(PRG)_$${a%/*}_$${a#*/} ; \
-  [ "$${a%/*}" == "windows" ] && P1=$$P.exe || P1=$$P ; \
-  zip "$(DIRDIST)/$$P.zip" "$$P1" README.md ; \
-done
+	sha256sum $(PRG)* > $(DIRDIST)/SHA256SUMS ; \
+	for a in $(ALLARCH) ; do \
+	  echo "** $${a%/*} $${a#*/}" ; \
+	  P=$(PRG)_$${a%/*}_$${a#*/} ; \
+	  [ "$${a%/*}" == "windows" ] && P1=$$P.exe || P1=$$P ; \
+	  zip "$(DIRDIST)/$$P.zip" "$$P1" README.md ; \
+	done
 
 
 
@@ -190,9 +191,9 @@ help: build
 ## run docker-compose
 dc: docker-compose.yml
 	@docker run --rm -t -i \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v $$PWD:$$PWD \
-  -w $$PWD \
-  docker/compose:1.14.0 \
-  $(CMD)
+	  -v /var/run/docker.sock:/var/run/docker.sock \
+	  -v $$PWD:$$PWD \
+	  -w $$PWD \
+	  docker/compose:1.14.0 \
+	  $(CMD)
 
