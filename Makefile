@@ -25,7 +25,7 @@ PRGPATH   ?= $(PRGBIN)
 PIDFILE   ?= $(PRGBIN).pid
 LOGFILE   ?= $(PRGBIN).log
 STAMP     ?= $$(date +%Y-%m-%d_%H:%M.%S)
-ALLARCH   ?= "linux/amd64 linux/386 darwin/386 windows/amd64"
+ALLARCH   ?= linux/amd64 linux/386 darwin/386 windows/amd64
 #LIBS       = $(shell go list ./... | grep -vE '/(vendor|iface|proto|cmd)/')
 
 
@@ -82,7 +82,7 @@ build: lint vet $(PRGPATH)
 $(PRGPATH): $(SOURCES)
 	@echo "*** $@ ***"
 	@[ -d $(GIT_ROOT)/.git ] && GH=`git rev-parse HEAD` || GH=nogit ; \
-GOOS=$(OS) GOARCH=$(ARCH) go build -v -o $(PRGBIN) -ldflags \
+GOOS=$(OS) GOARCH=$(ARCH) go build -va -o $(PRGBIN) -ldflags \
 "-X main.Build=$(STAMP) -X main.Commit=$$GH"
 
 ## run go lint
@@ -118,7 +118,7 @@ for a in $(ALLARCH) ; do \
   echo "** $${a%/*} $${a#*/}" ; \
   P=$(PRG)_$${a%/*}_$${a#*/} ; \
   [ "$${a%/*}" == "windows" ] && P=$$P.exe ; \
-  GOOS=$${a%/*} GOARCH=$${a#*/} go build -o $$P -ldflags \
+  GO_ENABLED=0 GOOS=$${a%/*} GOARCH=$${a#*/} go build -o $$P -ldflags \
   "-X main.Build=$(STAMP) -X main.Commit=$$GH" ; \
 done
 
@@ -135,46 +135,6 @@ for a in $(ALLARCH) ; do \
   zip "$(DIRDIST)/$$P.zip" "$$P1" README.md ; \
 done
 
-
-# ------------------------------------------------------------------------------
-# Database sample
-
-## create database schema rpc with used objects
-db: $(CFG)
-	@source $(CFG) && \
-  DBC="$$DB_USER:$$DB_PASS@$$DB_ADDR/$$DB_NAME?sslmode=disable" ; \
-  cmd() { echo -e 'BEGIN;\n\set ON_ERROR_STOP 1\n\set SCH rpc\nSET SEARCH_PATH = :SCH, public;' && \
-  for f in $(SQLSOURCE)/$(SQLMASK); do echo '\i '$$f; done && \
-  echo 'COMMIT;' ; } && cmd | psql -d postgres://$$DBC \
-    -v SERVICE_KEY=$$AUTH_SAMPLE_SERVICE_KEY \
-    -v USER_PASS=$$AUTH_SAMPLE_USER_PASS
-
-
-## compile stored functions
-db-make: SQLMASK = [56]?_*.sql
-db-make: db
-
-## compile auth example functions
-db-auth: SQLMASK = samples/60_sample_auth.sql
-db-auth: db
-
-## drop database schema rpc
-db-clean: $(CFG)
-	@source $(CFG) && \
-  DBC="$$DB_USER:$$DB_PASS@$$DB_ADDR/$$DB_NAME?sslmode=disable" ; \
-  echo "DROP SCHEMA IF EXISTS rpc CASCADE;" | psql -d postgres://$$DBC
-
-## drop database schema rpc
-db-clean-auth: $(CFG)
-	@source $(CFG) && \
-  DBC="$$DB_USER:$$DB_PASS@$$DB_ADDR/$$DB_NAME?sslmode=disable" ; \
-  echo "DROP SCHEMA IF EXISTS test_auth CASCADE;" | psql -d postgres://$$DBC
-
-## run psql
-psql: $(CFG)
-	@source $(CFG) && \
-  DBC="$$DB_USER:$$DB_PASS@$$DB_ADDR/$$DB_NAME?sslmode=disable" ; \
-  psql -d postgres://$$DBC
 
 
 # ------------------------------------------------------------------------------
@@ -203,11 +163,6 @@ DB_NAME=$(DB_NAME)
 DB_USER=$(DB_NAME)
 # Password
 DB_PASS=$(PG_DB_PASS)
-
-# Key form sql/samples auth
-AUTH_SAMPLE_SERVICE_KEY=$(AUTH_SAMPLE_SERVICE_KEY)
-# User password for sql/samples auth
-AUTH_SAMPLE_USER_PASS=$(AUTH_SAMPLE_USER_PASS)
 
 endef
 export CONFIG_DEF
