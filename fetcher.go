@@ -27,7 +27,7 @@ func cacheFetcher(log *logger.Log, cacheGroup *groupcache.Group) workman.WorkerF
 	// https://github.com/capotej/groupcache-db-experiment
 	return func(payload string) workman.Result {
 		var data []byte
-		log.Debugf("asked for %s from groupcache", payload)
+		log.Debug("asking groupcache")
 		err := cacheGroup.Get(nil, payload,
 			groupcache.AllocatingByteSliceSink(&data))
 		var res workman.Result
@@ -53,7 +53,7 @@ func cacheFetcher(log *logger.Log, cacheGroup *groupcache.Group) workman.WorkerF
 
 func dbFetcher(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool) groupcache.GetterFunc {
 	return func(ctx groupcache.Context, key string, dest groupcache.Sink) error {
-		log.Printf("asking for %s from dbserver", key)
+		log.Info("asking dbserver")
 
 		var isOk byte = 1 // status: success
 
@@ -312,7 +312,12 @@ func FetchSQLResult(rows *pgx.Rows, log *logger.Log) (data *TableRows, err error
 			val := values[i]
 			if types[i] == "json" || types[i] == "jsonb" {
 				if val != nil {
-					raw := fmt.Sprintf("%s", val)
+					var raw []byte
+					raw, err = json.Marshal(val)
+					if err != nil {
+						log.Warnf("Value marshal error: %s", err.Error())
+						return
+					}
 					ref := json.RawMessage(raw)
 					entry[col] = &ref
 				}
