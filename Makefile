@@ -13,6 +13,7 @@ SQLMASK   ?= [1-8]?_*.sql
 
 # Runtime data
 DB_NAME   ?= dbrpc
+DB_PASS   ?= $(shell < /dev/urandom tr -dc A-Za-z0-9 | head -c14; echo)
 APP_SITE  ?= localhost:8081
 APP_ADDR  ?= $(APP_SITE)
 
@@ -31,10 +32,7 @@ ALLARCH   ?= linux/amd64 linux/386 darwin/386 windows/amd64
 # use -a -v to rebuild all sources
 BUILD_FLAG ?=
 
-JWT_KEY                 ?= $(shell < /dev/urandom tr -dc A-Za-z0-9 | head -c14; echo)
-PG_DB_PASS              ?= $(shell < /dev/urandom tr -dc A-Za-z0-9 | head -c14; echo)
-AUTH_SAMPLE_SERVICE_KEY ?= $(shell < /dev/urandom tr -dc A-Za-z0-9 | head -c14; echo)
-AUTH_SAMPLE_USER_PASS   ?= $(shell < /dev/urandom tr -dc A-Za-z0-9 | head -c14; echo)
+JWT_KEY   ?= $(shell < /dev/urandom tr -dc A-Za-z0-9 | head -c14; echo)
 
 # Search .git for commit id fetch
 GIT_ROOT  ?= $$([ -d ./.git ] && echo "." || { [ -d ../.git ] && echo ".." ; } || { [ -d ../../.git ] && echo "../.." ; })
@@ -163,7 +161,7 @@ DB_NAME=$(DB_NAME)
 # User
 DB_USER=$(DB_NAME)
 # Password
-DB_PASS=$(PG_DB_PASS)
+DB_PASS=$(DB_PASS)
 
 endef
 export CONFIG_DEF
