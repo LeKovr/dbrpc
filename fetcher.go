@@ -379,7 +379,7 @@ func parseError(e error) (data []byte, err error) {
 			return
 		}
 	} else {
-		err = fmt.Errorf("%s (EMFE: Unknown error format)", match)
+		err = fmt.Errorf("%s (EMFE: Unknown error format)", e.Error())
 	}
 	return
 }
