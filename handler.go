@@ -75,10 +75,7 @@ func (s *RPCServer) Setup(db *pgx.ConnPool) {
 
 // ListenCounter listens db event & resets cache
 func (s *RPCServer) ListenCounter(db *pgx.ConnPool) {
-	conn, err := db.Acquire()
-	if err != nil {
-		s.log.Fatal("Error acquiring connection:", err)
-	}
+	conn := DBConnection(s.log, db)
 	defer db.Release(conn)
 
 	conn.Listen(s.cfg.CacheResetEvent)
@@ -88,7 +85,16 @@ func (s *RPCServer) ListenCounter(db *pgx.ConnPool) {
 		if err != nil && err != pgx.ErrNotificationTimeout {
 			// error, no timeout
 			s.log.Warn("Error waiting for notification:", err)
-			time.Sleep(time.Second * 10) // sleep & repeat
+			if !conn.IsAlive() {
+				conn.Close()
+				time.Sleep(time.Second * 5) // sleep & repeat
+				conn = DBConnection(s.log, db)
+				// there was a DB disconnect - reset cache
+				s.LoadFuncs(db)
+			} else {
+				time.Sleep(time.Second * 10) // sleep & repeat
+			}
+
 		} else if err == nil {
 			// no error, no timeout
 			s.log.Warnf("Cache reset event received with payload: %s", notification.Payload)
@@ -96,6 +102,17 @@ func (s *RPCServer) ListenCounter(db *pgx.ConnPool) {
 			s.LoadFuncs(db)
 		}
 
+	}
+}
+
+// DBConnection returns DB connection, wait and repeat forever on error
+func DBConnection(log *logger.Log, db *pgx.ConnPool) *pgx.Conn {
+	for {
+		conn, err := db.Acquire()
+		if err == nil {
+			return conn
+		}
+		time.Sleep(time.Second * 5) // sleep & repeat
 	}
 }
 
@@ -360,16 +377,16 @@ func (s *RPCServer) getContextHandler(w http.ResponseWriter, r *http.Request, se
 	fd, err := s.FunctionDef(method)
 	if err != nil {
 		// Warning was when fetched from db
-		log.Infof("Method %s load def error: %s", method, err)
+		log.Infof("Method %s lookup error: %s", method, err)
 		http.NotFound(w, r)
 		return
 	}
 
 	argDef, errd := s.FunctionArgDef(fd.NspName, fd.ProName)
 	if errd != nil {
+		log.Warnf("Method %s load def error: %s", method, errd)
+		http.Error(w, "Method load def error", http.StatusInternalServerError)
 		// Warning was when fetched from db
-		log.Infof("Method %s load def error: %s", method, errd)
-		http.NotFound(w, r)
 		return
 	}
 
@@ -493,8 +510,8 @@ func (s *RPCServer) postContextHandler(w http.ResponseWriter, r *http.Request, s
 		argDef, errd := s.FunctionArgDef(fd.NspName, fd.ProName)
 		if errd != nil {
 			log.Warnf("Method %s load def error: %s", method, errd)
-			resultRPC.Error = getRaw(respRPCError{Code: -32601, Message: "Method not found", Data: getRaw(errd)})
-			resultStatus = http.StatusNotFound
+			resultRPC.Error = getRaw(respRPCError{Code: -32603, Message: "Load method def error", Data: getRaw(errd)})
+			resultStatus = http.StatusInternalServerError
 		} else {
 			// Load args
 			r.ParseForm()
@@ -553,7 +570,7 @@ func (s *RPCServer) postgrestContextHandler(w http.ResponseWriter, r *http.Reque
 	}
 	fd, err := s.FunctionDef(method)
 	if err != nil {
-		log.Warnf("Method %s load def error: %s", method, err)
+		log.Warnf("Method %s lookup error: %s", method, err)
 		http.NotFound(w, r)
 		return
 	}
@@ -561,7 +578,7 @@ func (s *RPCServer) postgrestContextHandler(w http.ResponseWriter, r *http.Reque
 	argDef, errd := s.FunctionArgDef(fd.NspName, fd.ProName)
 	if errd != nil {
 		log.Warnf("Method %s load def error: %s", method, errd)
-		http.NotFound(w, r)
+		http.Error(w, "Method load def error", http.StatusInternalServerError)
 		return
 	}
 	resultStatus := http.StatusOK

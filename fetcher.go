@@ -97,11 +97,14 @@ type FuncMap map[string]FuncDef
 func indexFetcher(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool) (index *FuncMap, err error) {
 	var rows *pgx.Rows
 
+	conn := DBConnection(log, db)
+	defer db.Release(conn)
+
 	// q := fmt.Sprintf("select code, nspname, proname, permit_code, max_age, is_ro from %s()", cfg.ArgIndexFunc)
 	q := fmt.Sprintf("select code, nspname, proname, max_age, is_ro from %s()", cfg.ArgIndexFunc)
 	log.Debugf("Query: %s", q)
 
-	rows, err = db.Query(q)
+	rows, err = conn.Query(q)
 	if err != nil {
 		return
 	}
@@ -157,11 +160,19 @@ func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool, key string) (data
 
 	log.Debugf("Query: %s args: %+v", q, vals)
 
+	//	conn := DBConnection(log, db)
+	var conn *pgx.Conn
+	conn, err = db.Acquire()
+	if err != nil {
+		return
+	}
+	defer db.Release(conn)
+
 	if inTx {
 		// call func after begin
 		log.Debug("Run in transaction mode")
 		var tx *pgx.Tx
-		tx, err = db.Begin()
+		tx, err = conn.Begin()
 		if err != nil {
 			return
 		}
@@ -194,7 +205,7 @@ func dbQuery(cfg *AplFlags, log *logger.Log, db *pgx.ConnPool, key string) (data
 		log.Debug("Call committed")
 
 	} else {
-		rows, err = db.Query(q, vals...)
+		rows, err = conn.Query(q, vals...)
 		if err != nil {
 			return
 		}
@@ -342,7 +353,8 @@ func FetchSQLResult(rows *pgx.Rows, log *logger.Log) (data *TableRows, err error
 	return
 }
 
-var reError = regexp.MustCompile(`^ERROR: (.+) \(SQLSTATE (\w+)\)$`)
+var reSQLError = regexp.MustCompile(`^ERROR: (.+) \(SQLSTATE (\w+)\)$`)
+var reDialError = regexp.MustCompile(`^dial (.+): getsockopt: connection refused$`)
 var reHash = regexp.MustCompile(`^\{.+\}$`)
 
 // Vars holds error fields hash
@@ -359,7 +371,7 @@ func parseError(e error) (data []byte, err error) {
 
 	// ERROR: {\"code\" : \"YA014\", \"data\" : {\"login\": \"john\"}} (SQLSTATE P0001)"
 	// EMFE - Error Message Format Error
-	match := reError.FindStringSubmatch(e.Error())
+	match := reSQLError.FindStringSubmatch(e.Error())
 	if len(match) == 3 {
 		if match[2] == "P0001" {
 			if reHash.MatchString(match[1]) {
@@ -379,7 +391,14 @@ func parseError(e error) (data []byte, err error) {
 			return
 		}
 	} else {
-		err = fmt.Errorf("%s (EMFE: Unknown error format)", e.Error())
+		match = reDialError.FindStringSubmatch(e.Error())
+		if len(match) == 2 {
+			ev := ErrorVars{Code: "RPC01", Message: "database connect error"}
+			data, _ = json.Marshal(ev) // Got postgresql error
+		} else {
+			err = fmt.Errorf("%s (EMFE: Unknown error format) - %d", e.Error(), len(match))
+		}
+
 	}
 	return
 }

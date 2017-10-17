@@ -187,25 +187,28 @@ func setUp(cfg *Config) (log *logger.Log, db *pgx.ConnPool, err error) {
 	c.RuntimeParams = RuntimeParams
 	c.LogLevel = pgx.LogLevelDebug // LogLevelFromString
 	c.Logger = lg.New("db.log", "db")
-	db, err = pgx.NewConnPool(pgx.ConnPoolConfig{
-		ConnConfig:     c,
-		MaxConnections: cfg.wm.MaxWorkers,
-		AfterConnect: func(conn *pgx.Conn) error {
-			if cfg.apl.Schema != "" {
-				log.Debugf("DB searchpath: (%s)", cfg.apl.Schema)
-				_, err = conn.Exec("set search_path = " + cfg.apl.Schema)
-			}
-			log.Debugf("Added DB connection")
-			// TODO
-			//			if cfg.apl.ConfigFunc != "" {
-			//				log.Debugf("Loaded DB config from %s", cfg.apl.ConfigFunc)
-			//			}
-			return err
-		},
-	})
-	panicIfError(err) // check Flags parse error
-
-	return
+	for {
+		db, err = pgx.NewConnPool(pgx.ConnPoolConfig{
+			ConnConfig:     c,
+			MaxConnections: cfg.wm.MaxWorkers,
+			AfterConnect: func(conn *pgx.Conn) error {
+				if cfg.apl.Schema != "" {
+					log.Debugf("DB searchpath: (%s)", cfg.apl.Schema)
+					_, err = conn.Exec("set search_path = " + cfg.apl.Schema)
+				}
+				log.Debugf("Added DB connection")
+				// TODO
+				//			if cfg.apl.ConfigFunc != "" {
+				//				log.Debugf("Loaded DB config from %s", cfg.apl.ConfigFunc)
+				//			}
+				return err
+			},
+		})
+		if err == nil {
+			return
+		}
+		time.Sleep(time.Second * 5) // sleep & repeat
+	}
 }
 
 // -----------------------------------------------------------------------------
