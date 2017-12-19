@@ -8,6 +8,11 @@
 [3]: https://img.shields.io/badge/license-MIT-blue.svg
 [4]: LICENSE
 
+JSON-RPC <-> Postgresql proxy service.
+
+WARNING: Current version of this project is not intended for production use. This is proof-of-concept.
+Tests, docs and more than 1 committer is required for getting this project production-ready.
+
 This service
 
 * gets http request (GET or POST)
